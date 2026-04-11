@@ -31,12 +31,26 @@ defmodule Units.CLI do
   def main(args) do
     {options, positional, _invalid} =
       OptionParser.parse(args,
-        aliases: [v: :verbose, t: :terse, q: :quiet, h: :help],
+        aliases: [
+          v: :verbose,
+          t: :terse,
+          q: :quiet,
+          h: :help,
+          d: :digits,
+          e: :exponential,
+          o: :output_format,
+          s: :strict
+        ],
         switches: [
           verbose: :boolean,
           terse: :boolean,
           quiet: :boolean,
+          strict: :boolean,
+          exponential: :boolean,
+          one_line: :boolean,
           locale: :string,
+          digits: :integer,
+          output_format: :string,
           conformable: :string,
           list: :string,
           version: :boolean,
@@ -74,23 +88,18 @@ defmodule Units.CLI do
       Localize.put_locale(locale)
     end
 
-    format = format_from_options(options)
+    format_options = build_format_options(options, nil)
 
     IO.stream(:stdio, :line)
     |> Enum.each(fn line ->
       expression = String.trim(line)
 
       if expression != "" do
-        format_options = [format: format, input: expression]
-
-        format_options =
-          if options[:locale],
-            do: [{:locale, options[:locale]} | format_options],
-            else: format_options
+        expr_options = Keyword.put(format_options, :input, expression)
 
         case Units.eval(expression) do
           {:ok, result, _env} ->
-            case Units.Formatter.format(result, format_options) do
+            case Units.Formatter.format(result, expr_options) do
               {:ok, formatted} -> IO.puts(formatted)
               {:error, reason} -> IO.puts(:stderr, Units.Error.format(reason))
             end
@@ -134,13 +143,7 @@ defmodule Units.CLI do
           Enum.join(positional, " ")
       end
 
-    format = format_from_options(options)
-    format_options = [format: format, input: expression]
-
-    format_options =
-      if options[:locale],
-        do: [{:locale, options[:locale]} | format_options],
-        else: format_options
+    format_options = build_format_options(options, expression)
 
     case Units.eval(expression) do
       {:ok, result, _env} ->
@@ -155,6 +158,24 @@ defmodule Units.CLI do
       {:error, message, _partial} ->
         error_exit(message)
     end
+  end
+
+  defp build_format_options(options, input) do
+    format = format_from_options(options)
+    opts = [format: format]
+    opts = if input, do: [{:input, input} | opts], else: opts
+    opts = if options[:locale], do: [{:locale, options[:locale]} | opts], else: opts
+    opts = if options[:digits], do: [{:digits, options[:digits]} | opts], else: opts
+    opts = if options[:exponential], do: [{:exponential, true} | opts], else: opts
+
+    opts =
+      if options[:output_format],
+        do: [{:output_format, options[:output_format]} | opts],
+        else: opts
+
+    # Reciprocal line: shown by default for :default format, suppressed by --strict or --one-line
+    show_reciprocal = format == :default and not options[:strict] and not options[:one_line]
+    [{:show_reciprocal, show_reciprocal} | opts]
   end
 
   defp show_conformable(unit_name) do
@@ -220,6 +241,11 @@ defmodule Units.CLI do
       -v, --verbose          Show "from = to" format
       -t, --terse            Bare numeric result only
       -q, --quiet            Suppress REPL prompts
+      -s, --strict           Suppress reciprocal conversions
+      -1, --one-line         Forward conversion only (no reciprocal)
+      -d, --digits <n>       Maximum fractional digits (default: 6)
+      -e, --exponential      Scientific notation output
+      -o, --output-format <fmt>  Printf-style format (e.g., "%.8g")
       --locale <id>          Set formatting locale
       --conformable <unit>   List conformable units
       --list [category]      List known units or categories
@@ -232,6 +258,8 @@ defmodule Units.CLI do
       units "3 meters" "feet"        Two-argument conversion
       units -v "1 gallon" "liters"   Verbose output
       units -t "100 celsius" "fahrenheit"   Numeric only
+      units -d 10 "3 meters" "feet"  High precision
+      units -e "1 light-year" "km"   Scientific notation
     """)
   end
 end

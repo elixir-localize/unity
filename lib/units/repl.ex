@@ -4,11 +4,12 @@ defmodule Units.Repl do
 
   Supports expression evaluation, variable bindings with `let`, chained
   conversions with `_` (previous result), and special commands like
-  `help`, `list`, `conformable`, `info`, `locale`, and `quit`.
+  `help`, `list`, `search`, `conformable`, `info`, `locale`, and `quit`.
 
   """
 
   @version Mix.Project.config()[:version]
+  @history_file "~/.units_history"
 
   @doc """
   Starts the interactive REPL.
@@ -20,6 +21,9 @@ defmodule Units.Repl do
   * `:locale` - initial locale for formatting. Defaults to the current
     process locale.
 
+  * `:history_file` - path to a file for persisting command history.
+    Defaults to `"~/.units_history"`. Set to `nil` to disable.
+
   """
   @spec start(keyword()) :: :ok
   def start(options \\ []) do
@@ -29,20 +33,25 @@ defmodule Units.Repl do
       Localize.put_locale(locale)
     end
 
+    history_path = resolve_history_path(Keyword.get(options, :history_file, @history_file))
+    load_history(history_path)
+
     unless quiet do
       IO.puts("Units v#{@version} — type \"help\" for commands, \"quit\" to exit\n")
     end
 
-    loop(%{})
+    loop(%{}, history_path)
   end
 
-  defp loop(environment) do
+  defp loop(environment, history_path) do
     case IO.gets("> ") do
       :eof ->
         IO.puts("")
+        save_history(history_path)
         :ok
 
       {:error, _reason} ->
+        save_history(history_path)
         :ok
 
       input ->
@@ -50,9 +59,10 @@ defmodule Units.Repl do
 
         case handle_input(input, environment) do
           {:continue, environment} ->
-            loop(environment)
+            loop(environment, history_path)
 
           :quit ->
+            save_history(history_path)
             :ok
         end
     end
@@ -74,6 +84,11 @@ defmodule Units.Repl do
   defp handle_input("list" <> rest, environment) do
     category = String.trim(rest)
     list_units(category)
+    {:continue, environment}
+  end
+
+  defp handle_input("search " <> query, environment) do
+    search_units(String.trim(query))
     {:continue, environment}
   end
 
@@ -132,12 +147,109 @@ defmodule Units.Repl do
   defp unwrap_decomposed({:decomposed, [first | _]}), do: first
   defp unwrap_decomposed(result), do: result
 
+  # ── Search ──
+
+  defp search_units(query) do
+    query_down = String.downcase(query)
+
+    # Search through aliases
+    alias_matches =
+      Units.Aliases.known_aliases()
+      |> Enum.filter(&String.contains?(String.downcase(&1), query_down))
+
+    # Search through CLDR unit names
+    cldr_matches =
+      Units.Aliases.all_known_names()
+      |> MapSet.to_list()
+      |> Enum.filter(&String.contains?(&1, query_down))
+
+    # Combine, resolve to CLDR names, deduplicate
+    all_matches =
+      (alias_matches ++ cldr_matches)
+      |> Enum.map(fn name ->
+        case Units.Aliases.resolve(name) do
+          {:ok, cldr} -> {name, cldr}
+          _ -> {name, name}
+        end
+      end)
+      |> Enum.uniq_by(fn {_name, cldr} -> cldr end)
+      |> Enum.sort_by(fn {name, _cldr} -> name end)
+
+    case all_matches do
+      [] ->
+        IO.puts("No units matching #{inspect(query)}")
+
+      matches ->
+        lines =
+          Enum.map(matches, fn
+            {name, cldr} when name == cldr -> name
+            {name, cldr} -> "#{name} (#{cldr})"
+          end)
+
+        IO.puts(Enum.join(lines, ", "))
+    end
+  end
+
+  # ── History ──
+
+  defp resolve_history_path(nil), do: nil
+
+  defp resolve_history_path(path) do
+    path
+    |> String.replace_leading("~", System.user_home!())
+    |> Path.expand()
+  end
+
+  defp load_history(nil), do: :ok
+
+  defp load_history(path) do
+    case File.read(path) do
+      {:ok, content} ->
+        content
+        |> String.split("\n", trim: true)
+        |> Enum.each(fn line ->
+          :group_history.add(String.to_charlist(line))
+        end)
+
+      {:error, _} ->
+        :ok
+    end
+  rescue
+    UndefinedFunctionError -> :ok
+  end
+
+  defp save_history(nil), do: :ok
+
+  defp save_history(path) do
+    history =
+      case :group_history.get() do
+        lines when is_list(lines) ->
+          lines
+          |> Enum.reverse()
+          |> Enum.take(-500)
+          |> Enum.map_join("\n", &List.to_string/1)
+
+        _ ->
+          ""
+      end
+
+    if history != "" do
+      File.write(path, history <> "\n")
+    end
+
+    :ok
+  rescue
+    UndefinedFunctionError -> :ok
+  end
+
+  # ── Help ──
+
   defp print_help do
     IO.puts("""
     Expression syntax:
       3 meters to feet       Convert between units
       60 mph + 10 km/h       Add compatible units
-      100 kg * 9.8 m/s^2    Multiply units
+      100 kg * 9.8 m/s^2    Multiply units (also: **)
       sqrt(9 m^2)            Functions: sqrt, cbrt, abs, round, ceil, floor
       1|3 cup                Rational numbers
       let x = 42 km          Variable binding
@@ -147,6 +259,7 @@ defmodule Units.Repl do
     Commands:
       help                   Show this help
       list [category]        List known units
+      search <text>          Search unit names containing <text>
       conformable <unit>     List units convertible with <unit>
       info <unit>            Show unit information
       locale <id>            Change display locale (e.g., locale de)

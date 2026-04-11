@@ -9,9 +9,17 @@ defmodule Units.Formatter do
   """
 
   @type format :: :default | :verbose | :terse
-  @type options :: [format: format(), locale: atom() | String.t()]
+  @type options :: [
+          format: format(),
+          locale: atom() | String.t(),
+          input: String.t(),
+          digits: pos_integer(),
+          exponential: boolean(),
+          output_format: String.t(),
+          show_reciprocal: boolean()
+        ]
 
-  @max_fractional_digits 6
+  @default_max_fractional_digits 6
 
   @doc """
   Formats a result value for display.
@@ -32,6 +40,19 @@ defmodule Units.Formatter do
     current process locale.
 
   * `:input` - the original input string, used in verbose mode.
+
+  * `:digits` - maximum number of fractional digits to display.
+    Defaults to 6.
+
+  * `:exponential` - if `true`, format numbers in scientific notation.
+    Defaults to `false`.
+
+  * `:output_format` - a printf-style format string (e.g., `"%.8g"`).
+    When set, overrides `:digits` and `:exponential`.
+
+  * `:show_reciprocal` - if `true`, append a reciprocal conversion line
+    (e.g., `/ 0.3048`). Defaults to `true` in `:default` format for
+    conversions. Set to `false` with `--strict` or `--one-line`.
 
   ### Returns
 
@@ -72,21 +93,31 @@ defmodule Units.Formatter do
     input = Keyword.get(options, :input)
     locale_options = build_locale_options(options)
 
-    case format_mode do
-      :terse ->
-        format_terse(unit, locale_options)
+    result =
+      case format_mode do
+        :terse ->
+          format_terse(unit, options)
 
-      :verbose ->
-        format_verbose(unit, input, locale_options)
+        :verbose ->
+          format_verbose(unit, input, locale_options)
 
-      :default ->
-        format_default(unit, locale_options)
+        :default ->
+          format_default(unit, locale_options)
+      end
+
+    with {:ok, main_line} <- result do
+      if Keyword.get(options, :show_reciprocal, false) and unit.value != nil and unit.value != 0 do
+        reciprocal = 1.0 / unit.value
+        {:ok, reciprocal_str} = format_raw_number(reciprocal, options)
+        {:ok, main_line <> "\n\t/ #{reciprocal_str}"}
+      else
+        {:ok, main_line}
+      end
     end
   end
 
   def format(number, options) when is_number(number) do
-    locale_options = build_locale_options(options)
-    format_number(number, locale_options)
+    format_raw_number(number, options)
   end
 
   def format(result, _options) do
@@ -108,9 +139,10 @@ defmodule Units.Formatter do
   # ── Private ──
 
   defp build_locale_options(options) do
-    opts = []
+    digits = Keyword.get(options, :digits, @default_max_fractional_digits)
+    opts = [max_fractional_digits: digits]
     opts = if locale = Keyword.get(options, :locale), do: [{:locale, locale} | opts], else: opts
-    [{:max_fractional_digits, @max_fractional_digits} | opts]
+    opts
   end
 
   defp format_default(unit, locale_options) do
@@ -120,8 +152,8 @@ defmodule Units.Formatter do
     end
   end
 
-  defp format_terse(%Localize.Unit{value: value}, locale_options) do
-    format_number(value, locale_options)
+  defp format_terse(%Localize.Unit{value: value}, options) do
+    format_raw_number(value, options)
   end
 
   defp format_verbose(unit, input, locale_options) do
@@ -135,14 +167,45 @@ defmodule Units.Formatter do
     end
   end
 
-  defp format_number(number, locale_options) when is_number(number) do
-    case Localize.Number.to_string(number, locale_options) do
-      {:ok, string} -> {:ok, string}
-      {:error, exception} -> {:error, Exception.message(exception)}
+  # Formats a raw number, respecting :output_format, :exponential, and :digits.
+  #
+  # Uses Localize.Number.to_string for all standard formatting. The only
+  # exception is --output-format which accepts an Erlang :io_lib.format
+  # string as a power-user escape hatch for exact numeric control.
+  defp format_raw_number(number, options) when is_number(number) do
+    cond do
+      output_format = Keyword.get(options, :output_format) ->
+        erlang_fmt = printf_to_erlang(output_format)
+        formatted = :io_lib.format(erlang_fmt, [number / 1])
+        {:ok, IO.chardata_to_string(formatted)}
+
+      Keyword.get(options, :exponential, false) ->
+        locale_options = build_locale_options(options) ++ [format: :scientific]
+
+        case Localize.Number.to_string(number, locale_options) do
+          {:ok, string} -> {:ok, string}
+          {:error, exception} -> {:error, Exception.message(exception)}
+        end
+
+      true ->
+        locale_options = build_locale_options(options)
+
+        case Localize.Number.to_string(number, locale_options) do
+          {:ok, string} -> {:ok, string}
+          {:error, exception} -> {:error, Exception.message(exception)}
+        end
     end
   end
 
-  defp format_number(number, _locale_options) do
+  defp format_raw_number(number, _options) do
     {:ok, to_string(number)}
+  end
+
+  # Converts a printf-style format string (e.g., "%.8g") to an Erlang
+  # :io_lib.format string (e.g., ~c"~.8g"). Only used by --output-format.
+  defp printf_to_erlang(format) do
+    format
+    |> String.replace("%", "~")
+    |> String.to_charlist()
   end
 end

@@ -172,7 +172,7 @@ defmodule Units.Parser do
     base
     |> optional(
       ignore(optional_ws)
-      |> ignore(ascii_char([?^]))
+      |> ignore(choice([string("**"), string("^")]))
       |> ignore(optional_ws)
       |> concat(
         choice([

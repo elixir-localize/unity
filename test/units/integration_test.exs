@@ -195,6 +195,55 @@ defmodule Units.IntegrationTest do
     end
   end
 
+  describe "double-star exponentiation" do
+    test "s**2 evaluates same as s^2" do
+      {:ok, result, _env} = Units.eval("9 m**2")
+      assert result.name == "square-meter"
+      assert result.value == 9
+    end
+  end
+
+  describe "formatter options" do
+    test "digits option controls precision" do
+      result = Units.eval!("3 meters to feet")
+      {:ok, formatted} = Units.format(result, digits: 10)
+      assert formatted =~ "9.842519685"
+    end
+
+    test "exponential option" do
+      result = Units.eval!("3 meters to feet")
+      {:ok, formatted} = Units.format(result, format: :terse, exponential: true)
+      assert formatted =~ "E"
+    end
+
+    test "output_format option with printf syntax" do
+      result = Units.eval!("3 meters to feet")
+      {:ok, formatted} = Units.format(result, format: :terse, output_format: "%.8g")
+      assert formatted == "9.8425197"
+    end
+
+    test "show_reciprocal option" do
+      result = Units.eval!("3 meters to feet")
+      {:ok, formatted} = Units.format(result, show_reciprocal: true)
+      assert formatted =~ "feet"
+      assert formatted =~ "/ "
+    end
+
+    test "show_reciprocal false by default" do
+      result = Units.eval!("3 meters to feet")
+      {:ok, formatted} = Units.format(result)
+      refute formatted =~ "/ "
+    end
+  end
+
+  describe "search" do
+    test "Aliases.suggest finds similar names" do
+      suggestions = Units.Aliases.suggest("metrs")
+      names = Enum.map(suggestions, &elem(&1, 0))
+      assert "meters" in names or "meter" in names
+    end
+  end
+
   describe "aliases" do
     test "common abbreviations resolve" do
       assert {:ok, "meter"} = Units.Aliases.resolve("m")

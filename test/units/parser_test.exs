@@ -126,6 +126,15 @@ defmodule Units.ParserTest do
     test "negative exponent" do
       assert {:ok, {:power, {:unit_name, "s"}, {:number, -2}}} = Parser.parse("s^-2")
     end
+
+    test "double-star exponentiation" do
+      assert {:ok, {:power, {:unit_name, "s"}, {:number, 2}}} = Parser.parse("s**2")
+    end
+
+    test "double-star with quantity" do
+      assert {:ok, {:power, {:quantity, 9, {:unit_name, "m"}}, {:number, 2}}} =
+               Parser.parse("9 m**2")
+    end
   end
 
   describe "operator precedence" do

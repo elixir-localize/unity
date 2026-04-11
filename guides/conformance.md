@@ -6,20 +6,22 @@ This document describes how `Units` (the Elixir library) compares with the [GNU 
 
 | Category | Conforming | Partial | Different | Not implemented |
 |---|---|---|---|---|
-| Expression syntax | 8 | 1 | 1 | 1 |
+| Expression syntax | 9 | 1 | 1 | 0 |
 | Built-in functions | 6 | 0 | 0 | 0 |
 | Unit database | 0 | 1 | 1 | 0 |
-| Interactive mode | 5 | 1 | 1 | 3 |
-| CLI flags | 7 | 0 | 0 | 8 |
-| Output formatting | 2 | 1 | 0 | 1 |
+| Interactive mode | 7 | 1 | 1 | 1 |
+| CLI flags | 13 | 0 | 0 | 2 |
+| Output formatting | 3 | 1 | 0 | 0 |
 | Advanced features | 0 | 0 | 1 | 6 |
-| **Total** | **28** | **4** | **4** | **19** |
+| **Total** | **38** | **4** | **4** | **9** |
 
 ## Expression syntax
 
 ### Conforming
 
 * **Arithmetic operators** (`+`, `-`, `*`, `/`, `^`). All five standard operators work with the same meaning. `+` and `-` require conformable (same-dimension) units on both sides, matching GNU behaviour.
+
+* **`**` as exponentiation**. Both `^` and `**` are accepted: `s^2` and `s**2` produce the same result, matching GNU.
 
 * **Parentheses**. Parenthesized sub-expressions override precedence: `(3 + 4) * m`.
 
@@ -43,10 +45,6 @@ This document describes how `Units` (the Elixir library) compares with the [GNU 
 
 * **Conversion syntax**. GNU uses a two-prompt interactive model ("You have:" / "You want:") and a two-argument CLI (`units "from" "to"`). We support both the two-argument CLI form and inline conversion syntax (`3 m to ft`, `3 m -> ft`, `3 m in ft`). The inline syntax is an extension not present in GNU.
 
-### Not implemented
-
-* **`**` as exponentiation**. GNU accepts both `^` and `**` for exponentiation. We only accept `^`.
-
 ## Built-in functions
 
 ### Conforming
@@ -61,7 +59,7 @@ This document describes how `Units` (the Elixir library) compares with the [GNU 
 
 * **`exp`**. Exponential function on dimensionless values.
 
-Note: GNU also has `abs`, `round`, `ceil`, `floor` which we support as well, though these are extensions beyond the standard GNU function set.
+Note: We also support `abs`, `round`, `ceil`, `floor` which are extensions beyond the standard GNU function set.
 
 ## Unit database
 
@@ -81,11 +79,15 @@ Note: GNU also has `abs`, `round`, `ceil`, `floor` which we support as well, tho
 
 * **`help` command**. Prints syntax help and available commands.
 
-* **`list` command**. Lists known unit categories or units within a category. Analogous to GNU's `search` command.
+* **`list` command**. Lists known unit categories or units within a category.
+
+* **`search` command**. `search text` finds all unit names and aliases whose names contain the given substring, matching GNU's `search` functionality.
 
 * **`conformable` command**. Lists all units with the same dimension as a given unit. Analogous to typing `?` at the GNU "You want:" prompt.
 
 * **`quit` / `exit`**. Exits the REPL. Ctrl-D (EOF) also works.
+
+* **History file**. Command history is persisted to `~/.units_history` across REPL sessions via `:group_history`, analogous to GNU's `-H` flag.
 
 ### Partial
 
@@ -97,11 +99,7 @@ Note: GNU also has `abs`, `round`, `ceil`, `floor` which we support as well, tho
 
 ### Not implemented
 
-* **Readline / tab completion**. GNU units compiles with readline support for tab completion of unit names and command history navigation. Our REPL uses Erlang's built-in `:io.get_line/1` which provides basic line editing but no tab completion of unit names.
-
-* **History file**. GNU supports `-H filename` to persist readline history across sessions. We do not persist history.
-
-* **`search` command**. GNU's `search text` finds all units whose names contain the given substring. Our `list` command shows units by category but does not support arbitrary substring search across all unit names.
+* **Readline / tab completion**. GNU units compiles with readline support for tab completion of unit names and command history navigation. Our REPL uses Erlang's built-in line editor which provides basic line editing and history navigation but no tab completion of unit names.
 
 ## CLI flags
 
@@ -113,6 +111,16 @@ Note: GNU also has `abs`, `round`, `ceil`, `floor` which we support as well, tho
 
 * **`-q` / `--quiet`**. Suppresses prompts in interactive mode.
 
+* **`-d` / `--digits`**. Controls the maximum number of fractional digits in output. Defaults to 6.
+
+* **`-e` / `--exponential`**. Scientific notation output for numeric values.
+
+* **`-o` / `--output-format`**. Erlang-compatible format string (e.g., `"%.8g"`) for precise control over numeric output. Format strings use Erlang's `:io_lib.format` conventions.
+
+* **`-s` / `--strict`**. Suppresses reciprocal conversion lines.
+
+* **`-1` / `--one-line`**. Shows only the forward conversion (no reciprocal line). Equivalent to `--strict` for our output format.
+
 * **`--locale`**. Sets the formatting locale.
 
 * **`--conformable`**. Lists all units conformable with the given unit.
@@ -123,21 +131,9 @@ Note: GNU also has `abs`, `round`, `ceil`, `floor` which we support as well, tho
 
 ### Not implemented
 
-* **`-d` / `--digits`**. Control number of significant digits in output.
+* **`-f` / `--file`**. Load custom unit definition files. Not applicable since we use the CLDR database rather than a definitions file.
 
-* **`-e` / `--exponential`**. Scientific notation output.
-
-* **`-o` / `--output-format`**. Printf-style output format string.
-
-* **`-f` / `--file`**. Load custom unit definition files.
-
-* **`-s` / `--strict`**. Suppress reciprocal conversions.
-
-* **`-1` / `--one-line`**. Show only forward conversion (no reciprocal line).
-
-* **`-c` / `--check`**. Validate unit definition files for consistency.
-
-* **`--units`**. Select CGS unit system (gauss, esu, emu, etc.).
+* **`--units`**. Select CGS unit system (gauss, esu, emu, etc.). Out of scope.
 
 ## Output formatting
 
@@ -147,13 +143,11 @@ Note: GNU also has `abs`, `round`, `ceil`, `floor` which we support as well, tho
 
 * **Terse output**. Shows only the numeric value, suitable for shell scripting.
 
+* **Reciprocal conversion line**. Conversions show both the forward result and a reciprocal line (e.g., `/ 0.3048`), matching GNU's default two-line output. Suppressed with `--strict` or `--one-line`.
+
 ### Partial
 
-* **Precision control**. GNU defaults to 8 significant digits and supports `-d N` for arbitrary precision. We default to 6 decimal places via `max_fractional_digits` and do not currently support user-configurable precision from the CLI.
-
-### Not implemented
-
-* **Reciprocal conversion line**. GNU shows both `* factor` and `/ factor` lines by default. We show only the forward conversion.
+* **Precision control**. GNU defaults to 8 significant digits and supports `-d N` for significant digits. We default to 6 fractional digits and `-d N` controls fractional digits (not significant digits). The distinction matters for very large or very small numbers.
 
 ## Advanced features
 
@@ -167,11 +161,11 @@ Note: GNU also has `abs`, `round`, `ceil`, `floor` which we support as well, tho
 
 * **Non-linear unit conversions**. GNU supports arbitrary non-linear conversions defined by forward/inverse expression pairs (temperature scales, wire gauges, dB scales, etc.). We support temperature conversion via `Localize.Unit.convert/2` but do not support user-defined non-linear functions.
 
-* **Piecewise linear units**. GNU supports interpolated lookup tables for units like wire gauges. Not implemented.
+* **Piecewise linear units**. GNU supports interpolated lookup tables for units like wire gauges.
 
-* **Currency conversion**. GNU includes currency exchange rates updated by an external script. Not implemented.
+* **Currency conversion**. GNU includes currency exchange rates updated by an external script.
 
-* **CGS unit systems**. GNU supports selecting between Gaussian, ESU, EMU, and Heaviside-Lorentz CGS systems via `--units`. Not implemented.
+* **CGS unit systems**. GNU supports selecting between Gaussian, ESU, EMU, and Heaviside-Lorentz CGS systems via `--units`.
 
 * **Unit definition checking** (`--check`). GNU can validate that all units in a definitions file reduce to primitive base units. Not applicable since we use the CLDR database rather than a definitions file.
 
