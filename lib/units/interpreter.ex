@@ -1,0 +1,604 @@
+defmodule Units.Interpreter do
+  @moduledoc """
+  Evaluates ASTs produced by `Units.Parser` by building `Localize.Unit`
+  structs and applying operations via `Localize.Unit.Math`.
+
+  The interpreter maintains an environment map for variable bindings
+  (via `let`) and a special `_` binding for the previous result.
+
+  """
+
+  @type env :: %{String.t() => Localize.Unit.t() | number()}
+  @type result :: Localize.Unit.t() | number()
+
+  @doc """
+  Evaluates a parsed AST in the given environment.
+
+  ### Arguments
+
+  * `ast` - the AST node from `Units.Parser`.
+
+  * `environment` - a map of variable bindings. Defaults to `%{}`.
+
+  ### Returns
+
+  * `{:ok, result, environment}` on success, where `result` is a
+    `Localize.Unit.t()` or a number, and `environment` is the updated
+    variable bindings.
+
+  * `{:error, message}` on failure.
+
+  ### Examples
+
+      iex> {:ok, ast} = Units.Parser.parse("3 meters to feet")
+      iex> {:ok, result, _env} = Units.Interpreter.eval(ast)
+      iex> result.name
+      "foot"
+
+  """
+  @spec eval(term(), env()) :: {:ok, result(), env()} | {:error, String.t()}
+  def eval(ast, environment \\ %{})
+
+  # ── Let binding ──
+
+  def eval({:let, name, expr}, environment) do
+    case eval(expr, environment) do
+      {:ok, value, environment} ->
+        {:ok, value, Map.put(environment, name, value)}
+
+      error ->
+        error
+    end
+  end
+
+  # ── Number literal ──
+
+  def eval({:number, value}, environment) do
+    {:ok, value, environment}
+  end
+
+  # ── Variable reference ──
+
+  def eval({:variable, name}, environment) do
+    case Map.fetch(environment, name) do
+      {:ok, value} -> {:ok, value, environment}
+      :error -> {:error, "undefined variable: #{inspect(name)}"}
+    end
+  end
+
+  # ── Unit name (bare unit, implicit quantity 1) ──
+
+  def eval({:unit_name, name}, environment) do
+    case resolve_and_create(1, name) do
+      {:ok, unit} -> {:ok, unit, environment}
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  # ── Quantity (number + unit) ──
+
+  def eval({:quantity, value, unit_ast}, environment) do
+    case resolve_unit_ast(unit_ast) do
+      {:ok, unit_name} ->
+        case Localize.Unit.new(value, unit_name) do
+          {:ok, unit} -> {:ok, unit, environment}
+          {:error, exception} -> {:error, Exception.message(exception)}
+        end
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  # ── Conversion ──
+
+  def eval({:convert, expr, target_ast}, environment) do
+    with {:ok, value, environment} <- eval(expr, environment),
+         {:ok, target_name} <- resolve_unit_ast(target_ast),
+         {:ok, result} <- convert_value(value, target_name) do
+      {:ok, result, environment}
+    end
+  end
+
+  # ── Addition ──
+
+  def eval({:add, left_ast, right_ast}, environment) do
+    with {:ok, left, environment} <- eval(left_ast, environment),
+         {:ok, right, environment} <- eval(right_ast, environment) do
+      add_values(left, right, environment)
+    end
+  end
+
+  # ── Subtraction ──
+
+  def eval({:sub, left_ast, right_ast}, environment) do
+    with {:ok, left, environment} <- eval(left_ast, environment),
+         {:ok, right, environment} <- eval(right_ast, environment) do
+      sub_values(left, right, environment)
+    end
+  end
+
+  # ── Multiplication ──
+
+  def eval({:mult, left_ast, right_ast}, environment) do
+    with {:ok, left, environment} <- eval(left_ast, environment),
+         {:ok, right, environment} <- eval(right_ast, environment) do
+      mult_values(left, right, environment)
+    end
+  end
+
+  # ── Division ──
+
+  def eval({:div, left_ast, right_ast}, environment) do
+    with {:ok, left, environment} <- eval(left_ast, environment),
+         {:ok, right, environment} <- eval(right_ast, environment) do
+      div_values(left, right, environment)
+    end
+  end
+
+  # ── Power ──
+
+  def eval({:power, base_ast, exp_ast}, environment) do
+    with {:ok, base, environment} <- eval(base_ast, environment),
+         {:ok, exponent, environment} <- eval(exp_ast, environment) do
+      power_value(base, exponent, environment)
+    end
+  end
+
+  # ── Negation ──
+
+  def eval({:negate, expr_ast}, environment) do
+    with {:ok, value, environment} <- eval(expr_ast, environment) do
+      negate_value(value, environment)
+    end
+  end
+
+  # ── Function call ──
+
+  def eval({:function, name, arg_asts}, environment) do
+    {args, environment} =
+      Enum.reduce_while(arg_asts, {[], environment}, fn ast, {acc, env} ->
+        case eval(ast, env) do
+          {:ok, value, env} -> {:cont, {[value | acc], env}}
+          {:error, _} = error -> {:halt, {error, env}}
+        end
+      end)
+
+    case args do
+      {:error, _} = error ->
+        error
+
+      args ->
+        args = Enum.reverse(args)
+        apply_function(name, args, environment)
+    end
+  end
+
+  # ── Catch-all ──
+
+  def eval(ast, _environment) do
+    {:error, "cannot evaluate: #{inspect(ast)}"}
+  end
+
+  # ── Unit name resolution ──
+
+  defp resolve_unit_ast({:unit_name, name}) do
+    case Units.Aliases.resolve(name) do
+      {:ok, cldr_name} ->
+        {:ok, cldr_name}
+
+      {:error, :unknown_unit} ->
+        suggestions = Units.Aliases.suggest(name)
+        suggestion_text = format_suggestions(suggestions)
+        {:error, "unknown unit: #{inspect(name)}#{suggestion_text}"}
+    end
+  end
+
+  defp resolve_unit_ast({:power, {:unit_name, name}, {:number, exponent}}) do
+    case Units.Aliases.resolve(name) do
+      {:ok, cldr_name} ->
+        power_name = power_prefix(exponent) <> cldr_name
+        {:ok, power_name}
+
+      {:error, :unknown_unit} ->
+        suggestions = Units.Aliases.suggest(name)
+        suggestion_text = format_suggestions(suggestions)
+        {:error, "unknown unit: #{inspect(name)}#{suggestion_text}"}
+    end
+  end
+
+  defp resolve_unit_ast({:div, left_ast, right_ast}) do
+    with {:ok, left_name} <- resolve_unit_ast(left_ast),
+         {:ok, right_name} <- resolve_unit_ast(right_ast) do
+      {:ok, left_name <> "-per-" <> right_name}
+    end
+  end
+
+  defp resolve_unit_ast({:mult, left_ast, right_ast}) do
+    with {:ok, left_name} <- resolve_unit_ast(left_ast),
+         {:ok, right_name} <- resolve_unit_ast(right_ast) do
+      {:ok, left_name <> "-" <> right_name}
+    end
+  end
+
+  defp resolve_unit_ast(other) do
+    {:error, "cannot resolve unit expression: #{inspect(other)}"}
+  end
+
+  defp power_prefix(2), do: "square-"
+  defp power_prefix(3), do: "cubic-"
+  defp power_prefix(n), do: "pow#{n}-"
+
+  defp resolve_and_create(value, name) do
+    case Units.Aliases.resolve(name) do
+      {:ok, cldr_name} ->
+        case Localize.Unit.new(value, cldr_name) do
+          {:ok, unit} -> {:ok, unit}
+          {:error, exception} -> {:error, Exception.message(exception)}
+        end
+
+      {:error, :unknown_unit} ->
+        suggestions = Units.Aliases.suggest(name)
+        suggestion_text = format_suggestions(suggestions)
+        {:error, "unknown unit: #{inspect(name)}#{suggestion_text}"}
+    end
+  end
+
+  defp format_suggestions([]), do: ""
+
+  defp format_suggestions(suggestions) do
+    names = Enum.map(suggestions, fn {name, _dist} -> inspect(name) end)
+    "\n  Did you mean: #{Enum.join(names, ", ")}?"
+  end
+
+  # ── Conversion ──
+
+  defp convert_value(%Localize.Unit{} = unit, target_name) do
+    case Localize.Unit.convert(unit, target_name) do
+      {:ok, result} ->
+        {:ok, result}
+
+      {:error, exception} when is_exception(exception) ->
+        {:error, Exception.message(exception)}
+
+      {:error, reason} ->
+        {:error, "conversion error: #{inspect(reason)}"}
+    end
+  end
+
+  defp convert_value(number, target_name) when is_number(number) do
+    {:error,
+     "cannot convert bare number #{number} to #{inspect(target_name)} — specify a source unit"}
+  end
+
+  # ── Arithmetic dispatch ──
+
+  defp add_values(%Localize.Unit{} = left, %Localize.Unit{} = right, environment) do
+    case Localize.Unit.Math.add(left, right) do
+      {:ok, result} -> {:ok, result, environment}
+      {:error, reason} -> {:error, format_math_error("add", reason)}
+    end
+  end
+
+  defp add_values(left, right, environment) when is_number(left) and is_number(right) do
+    {:ok, left + right, environment}
+  end
+
+  defp add_values(_left, _right, _environment) do
+    {:error, "cannot add incompatible types"}
+  end
+
+  defp sub_values(%Localize.Unit{} = left, %Localize.Unit{} = right, environment) do
+    case Localize.Unit.Math.sub(left, right) do
+      {:ok, result} -> {:ok, result, environment}
+      {:error, reason} -> {:error, format_math_error("subtract", reason)}
+    end
+  end
+
+  defp sub_values(left, right, environment) when is_number(left) and is_number(right) do
+    {:ok, left - right, environment}
+  end
+
+  defp sub_values(_left, _right, _environment) do
+    {:error, "cannot subtract incompatible types"}
+  end
+
+  defp mult_values(%Localize.Unit{} = left, %Localize.Unit{} = right, environment) do
+    case Localize.Unit.Math.mult(left, right) do
+      {:ok, result} -> {:ok, result, environment}
+      {:error, reason} -> {:error, format_math_error("multiply", reason)}
+    end
+  end
+
+  defp mult_values(%Localize.Unit{} = unit, number, environment) when is_number(number) do
+    case Localize.Unit.Math.mult(unit, number) do
+      {:ok, result} -> {:ok, result, environment}
+      {:error, reason} -> {:error, format_math_error("multiply", reason)}
+    end
+  end
+
+  defp mult_values(number, %Localize.Unit{} = unit, environment) when is_number(number) do
+    case Localize.Unit.Math.mult(unit, number) do
+      {:ok, result} -> {:ok, result, environment}
+      {:error, reason} -> {:error, format_math_error("multiply", reason)}
+    end
+  end
+
+  defp mult_values(left, right, environment) when is_number(left) and is_number(right) do
+    {:ok, left * right, environment}
+  end
+
+  defp mult_values(_left, _right, _environment) do
+    {:error, "cannot multiply incompatible types"}
+  end
+
+  defp div_values(%Localize.Unit{} = left, %Localize.Unit{} = right, environment) do
+    case Localize.Unit.Math.div(left, right) do
+      {:ok, result} -> {:ok, result, environment}
+      {:error, reason} -> {:error, format_math_error("divide", reason)}
+    end
+  end
+
+  defp div_values(%Localize.Unit{} = unit, number, environment) when is_number(number) do
+    if number == 0 do
+      {:error, "division by zero"}
+    else
+      case Localize.Unit.Math.div(unit, number) do
+        {:ok, result} -> {:ok, result, environment}
+        {:error, reason} -> {:error, format_math_error("divide", reason)}
+      end
+    end
+  end
+
+  defp div_values(number, %Localize.Unit{} = unit, environment) when is_number(number) do
+    # number / unit → create unit with value number, then invert
+    case Localize.Unit.Math.invert(unit) do
+      {:ok, inverted} ->
+        case Localize.Unit.Math.mult(inverted, number) do
+          {:ok, result} -> {:ok, result, environment}
+          {:error, reason} -> {:error, format_math_error("divide", reason)}
+        end
+
+      {:error, reason} ->
+        {:error, format_math_error("divide", reason)}
+    end
+  end
+
+  defp div_values(left, right, environment) when is_number(left) and is_number(right) do
+    if right == 0 do
+      {:error, "division by zero"}
+    else
+      {:ok, left / right, environment}
+    end
+  end
+
+  defp div_values(_left, _right, _environment) do
+    {:error, "cannot divide incompatible types"}
+  end
+
+  # ── Power ──
+
+  defp power_value(%Localize.Unit{} = unit, exponent, environment) when is_number(exponent) do
+    int_exp = trunc(exponent)
+
+    if int_exp != exponent do
+      {:error, "non-integer exponents on units are not supported"}
+    else
+      unit_name = unit.name
+      power_name = power_prefix(int_exp) <> unit_name
+
+      case Localize.Unit.new(1, power_name) do
+        {:ok, _} ->
+          # For "9 m^2", the value stays 9 and the unit becomes square-meter.
+          # The exponent applies to the unit, not the value.
+          value = unit.value || 1
+
+          case Localize.Unit.new(value, power_name) do
+            {:ok, result} -> {:ok, result, environment}
+            {:error, exception} -> {:error, Exception.message(exception)}
+          end
+
+        {:error, _} ->
+          # Fall back to repeated multiplication for compound units
+          repeated_mult(unit, int_exp, environment)
+      end
+    end
+  end
+
+  defp power_value(base, exponent, environment) when is_number(base) and is_number(exponent) do
+    {:ok, :math.pow(base, exponent), environment}
+  end
+
+  defp power_value(_base, _exponent, _environment) do
+    {:error, "cannot raise to non-numeric exponent"}
+  end
+
+  defp repeated_mult(_unit, 0, environment) do
+    {:ok, 1, environment}
+  end
+
+  defp repeated_mult(unit, 1, environment) do
+    {:ok, unit, environment}
+  end
+
+  defp repeated_mult(unit, n, environment) when n > 1 do
+    Enum.reduce_while(2..n, {:ok, unit, environment}, fn _i, {:ok, acc, env} ->
+      case Localize.Unit.Math.mult(acc, unit) do
+        {:ok, result} -> {:cont, {:ok, result, env}}
+        {:error, reason} -> {:halt, {:error, format_math_error("power", reason)}}
+      end
+    end)
+  end
+
+  defp repeated_mult(unit, n, environment) when n < 0 do
+    case repeated_mult(unit, -n, environment) do
+      {:ok, result, env} ->
+        case Localize.Unit.Math.invert(result) do
+          {:ok, inverted} -> {:ok, inverted, env}
+          {:error, reason} -> {:error, format_math_error("power", reason)}
+        end
+
+      error ->
+        error
+    end
+  end
+
+  # ── Negation ──
+
+  defp negate_value(%Localize.Unit{} = unit, environment) do
+    case Localize.Unit.Math.negate(unit) do
+      {:ok, result} -> {:ok, result, environment}
+      {:error, reason} -> {:error, format_math_error("negate", reason)}
+    end
+  end
+
+  defp negate_value(number, environment) when is_number(number) do
+    {:ok, -number, environment}
+  end
+
+  # ── Built-in functions ──
+
+  @unit_functions ~w(sqrt cbrt abs round ceil floor)
+  @dimensionless_functions ~w(sin cos tan asin acos atan ln log log2 exp)
+
+  defp apply_function(name, args, environment) when name in @unit_functions do
+    case {name, args} do
+      {"sqrt", [%Localize.Unit{value: value} = unit]} ->
+        new_value = :math.sqrt(value)
+        # Try to create the square-root unit name
+        sqrt_unit_name(unit, new_value, environment)
+
+      {"sqrt", [n]} when is_number(n) ->
+        {:ok, :math.sqrt(n), environment}
+
+      {"cbrt", [%Localize.Unit{value: value} = unit]} ->
+        new_value = :math.pow(value, 1 / 3)
+        cbrt_unit_name(unit, new_value, environment)
+
+      {"cbrt", [n]} when is_number(n) ->
+        {:ok, :math.pow(n, 1 / 3), environment}
+
+      {"abs", [%Localize.Unit{} = unit]} ->
+        new_value = abs(unit.value)
+
+        case Localize.Unit.new(new_value, unit.name) do
+          {:ok, result} -> {:ok, result, environment}
+          {:error, exception} -> {:error, Exception.message(exception)}
+        end
+
+      {"abs", [n]} when is_number(n) ->
+        {:ok, abs(n), environment}
+
+      {"round", [%Localize.Unit{} = unit]} ->
+        new_value = round(unit.value)
+
+        case Localize.Unit.new(new_value, unit.name) do
+          {:ok, result} -> {:ok, result, environment}
+          {:error, exception} -> {:error, Exception.message(exception)}
+        end
+
+      {"round", [n]} when is_number(n) ->
+        {:ok, round(n), environment}
+
+      {"ceil", [%Localize.Unit{} = unit]} ->
+        new_value = Float.ceil(unit.value / 1)
+
+        case Localize.Unit.new(trunc(new_value), unit.name) do
+          {:ok, result} -> {:ok, result, environment}
+          {:error, exception} -> {:error, Exception.message(exception)}
+        end
+
+      {"ceil", [n]} when is_number(n) ->
+        {:ok, Float.ceil(n / 1) |> trunc(), environment}
+
+      {"floor", [%Localize.Unit{} = unit]} ->
+        new_value = Float.floor(unit.value / 1)
+
+        case Localize.Unit.new(trunc(new_value), unit.name) do
+          {:ok, result} -> {:ok, result, environment}
+          {:error, exception} -> {:error, Exception.message(exception)}
+        end
+
+      {"floor", [n]} when is_number(n) ->
+        {:ok, Float.floor(n / 1) |> trunc(), environment}
+
+      {_, _} ->
+        {:error, "#{name} expects exactly 1 argument, got #{length(args)}"}
+    end
+  end
+
+  defp apply_function(name, args, environment) when name in @dimensionless_functions do
+    case args do
+      [%Localize.Unit{} = _unit] ->
+        {:error, "#{name} requires a dimensionless argument"}
+
+      [n] when is_number(n) ->
+        result =
+          case name do
+            "sin" -> :math.sin(n)
+            "cos" -> :math.cos(n)
+            "tan" -> :math.tan(n)
+            "asin" -> :math.asin(n)
+            "acos" -> :math.acos(n)
+            "atan" -> :math.atan(n)
+            "ln" -> :math.log(n)
+            "log" -> :math.log10(n)
+            "log2" -> :math.log2(n)
+            "exp" -> :math.exp(n)
+          end
+
+        {:ok, result, environment}
+
+      _ ->
+        {:error, "#{name} expects exactly 1 numeric argument"}
+    end
+  end
+
+  defp apply_function(name, _args, _environment) do
+    {:error, "unknown function: #{inspect(name)}"}
+  end
+
+  # sqrt of "square-X" → "X"
+  defp sqrt_unit_name(%Localize.Unit{name: name}, new_value, environment) do
+    cond do
+      String.starts_with?(name, "square-") ->
+        base_name = String.replace_prefix(name, "square-", "")
+
+        case Localize.Unit.new(new_value, base_name) do
+          {:ok, result} -> {:ok, result, environment}
+          {:error, exception} -> {:error, Exception.message(exception)}
+        end
+
+      true ->
+        {:error, "cannot take square root of #{inspect(name)} — unit must be square-*"}
+    end
+  end
+
+  # cbrt of "cubic-X" → "X"
+  defp cbrt_unit_name(%Localize.Unit{name: name}, new_value, environment) do
+    cond do
+      String.starts_with?(name, "cubic-") ->
+        base_name = String.replace_prefix(name, "cubic-", "")
+
+        case Localize.Unit.new(new_value, base_name) do
+          {:ok, result} -> {:ok, result, environment}
+          {:error, exception} -> {:error, Exception.message(exception)}
+        end
+
+      true ->
+        {:error, "cannot take cube root of #{inspect(name)} — unit must be cubic-*"}
+    end
+  end
+
+  defp format_math_error(operation, reason) when is_binary(reason) do
+    "cannot #{operation}: #{reason}"
+  end
+
+  defp format_math_error(operation, reason) when is_exception(reason) do
+    "cannot #{operation}: #{Exception.message(reason)}"
+  end
+
+  defp format_math_error(operation, reason) do
+    "cannot #{operation}: #{inspect(reason)}"
+  end
+end

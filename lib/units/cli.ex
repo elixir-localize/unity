@@ -1,0 +1,179 @@
+defmodule Units.CLI do
+  @moduledoc """
+  Command-line entry point for the units calculator.
+
+  Supports both interactive (REPL) mode and single-expression evaluation.
+  Can be built as an escript via `mix escript.build`.
+
+  ## Usage
+
+      # Interactive mode
+      units
+
+      # Single expression
+      units "3 meters to feet"
+
+      # Two-argument conversion (GNU units style)
+      units "3 meters" "feet"
+
+      # With options
+      units -v "1 gallon" "liters"
+      units -t "100 celsius" "fahrenheit"
+      units --locale de "1234.5 meter to kilometer"
+
+  """
+
+  @doc """
+  Main entry point for escript execution.
+
+  """
+  @spec main([String.t()]) :: :ok
+  def main(args) do
+    {options, positional, _invalid} =
+      OptionParser.parse(args,
+        aliases: [v: :verbose, t: :terse, q: :quiet, h: :help],
+        switches: [
+          verbose: :boolean,
+          terse: :boolean,
+          quiet: :boolean,
+          locale: :string,
+          conformable: :string,
+          list: :string,
+          version: :boolean,
+          help: :boolean
+        ]
+      )
+
+    cond do
+      options[:version] ->
+        IO.puts("Units v#{Mix.Project.config()[:version]}")
+
+      options[:help] ->
+        print_usage()
+
+      options[:conformable] ->
+        show_conformable(options[:conformable])
+
+      Keyword.has_key?(options, :list) ->
+        show_list(options[:list] || "")
+
+      positional != [] ->
+        run_expression(positional, options)
+
+      true ->
+        repl_options = build_repl_options(options)
+        Units.Repl.start(repl_options)
+    end
+  end
+
+  defp run_expression(positional, options) do
+    if locale = options[:locale] do
+      Localize.put_locale(locale)
+    end
+
+    expression =
+      case positional do
+        [expr] -> expr
+        [from, to] -> "#{from} to #{to}"
+        _ -> Enum.join(positional, " ")
+      end
+
+    format =
+      cond do
+        options[:verbose] -> :verbose
+        options[:terse] -> :terse
+        true -> :default
+      end
+
+    format_options = [format: format, input: expression]
+
+    format_options =
+      if options[:locale],
+        do: [{:locale, options[:locale]} | format_options],
+        else: format_options
+
+    case Units.eval(expression) do
+      {:ok, result, _env} ->
+        case Units.Formatter.format(result, format_options) do
+          {:ok, formatted} -> IO.puts(formatted)
+          {:error, reason} -> error_exit(reason)
+        end
+
+      {:error, message} ->
+        error_exit(message)
+
+      {:error, message, _partial} ->
+        error_exit(message)
+    end
+  end
+
+  defp show_conformable(unit_name) do
+    case Units.Aliases.resolve(unit_name) do
+      {:ok, cldr_name} ->
+        case Localize.Unit.unit_category(cldr_name) do
+          {:ok, category} ->
+            by_category = Localize.Unit.known_units_by_category()
+            units = Map.get(by_category, category, [])
+            IO.puts(Enum.sort(units) |> Enum.join(", "))
+
+          {:error, exception} ->
+            error_exit(Exception.message(exception))
+        end
+
+      {:error, :unknown_unit} ->
+        error_exit("unknown unit: #{inspect(unit_name)}")
+    end
+  end
+
+  defp show_list("") do
+    categories = Localize.Unit.known_categories() |> Enum.sort()
+    IO.puts(Enum.join(categories, ", "))
+  end
+
+  defp show_list(category) do
+    by_category = Localize.Unit.known_units_by_category()
+
+    case Map.get(by_category, category) do
+      nil -> error_exit("unknown category: #{inspect(category)}")
+      units -> IO.puts(Enum.sort(units) |> Enum.join(", "))
+    end
+  end
+
+  defp build_repl_options(options) do
+    repl_options = []
+    repl_options = if options[:quiet], do: [{:quiet, true} | repl_options], else: repl_options
+
+    repl_options =
+      if options[:locale], do: [{:locale, options[:locale]} | repl_options], else: repl_options
+
+    repl_options
+  end
+
+  defp error_exit(message) do
+    IO.puts(:stderr, Units.Error.format(message))
+    System.halt(1)
+  end
+
+  defp print_usage do
+    IO.puts("""
+    Usage: units [options] [expression] [target]
+
+    Options:
+      -v, --verbose          Show "from = to" format
+      -t, --terse            Bare numeric result only
+      -q, --quiet            Suppress REPL prompts
+      --locale <id>          Set formatting locale
+      --conformable <unit>   List conformable units
+      --list [category]      List known units or categories
+      --version              Print version
+      -h, --help             Print this help
+
+    Examples:
+      units                          Start interactive mode
+      units "3 meters to feet"       Single conversion
+      units "3 meters" "feet"        Two-argument conversion
+      units -v "1 gallon" "liters"   Verbose output
+      units -t "100 celsius" "fahrenheit"   Numeric only
+    """)
+  end
+end
