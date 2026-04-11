@@ -11,6 +11,8 @@ defmodule Units.Formatter do
   @type format :: :default | :verbose | :terse
   @type options :: [format: format(), locale: atom() | String.t()]
 
+  @max_fractional_digits 6
+
   @doc """
   Formats a result value for display.
 
@@ -41,7 +43,7 @@ defmodule Units.Formatter do
 
       iex> {:ok, unit} = Localize.Unit.new(9.84252, "foot")
       iex> Units.Formatter.format(unit)
-      {:ok, "9.843 feet"}
+      {:ok, "9.84252 feet"}
 
   """
   @spec format(Localize.Unit.t() | number(), keyword()) ::
@@ -49,8 +51,7 @@ defmodule Units.Formatter do
   def format(result, options \\ [])
 
   def format({:decomposed, parts}, options) when is_list(parts) do
-    locale = Keyword.get(options, :locale)
-    locale_options = if locale, do: [locale: locale], else: []
+    locale_options = build_locale_options(options)
 
     results =
       Enum.reduce_while(parts, {:ok, []}, fn unit, {:ok, acc} ->
@@ -68,10 +69,8 @@ defmodule Units.Formatter do
 
   def format(%Localize.Unit{} = unit, options) do
     format_mode = Keyword.get(options, :format, :default)
-    locale = Keyword.get(options, :locale)
     input = Keyword.get(options, :input)
-
-    locale_options = if locale, do: [locale: locale], else: []
+    locale_options = build_locale_options(options)
 
     case format_mode do
       :terse ->
@@ -86,8 +85,7 @@ defmodule Units.Formatter do
   end
 
   def format(number, options) when is_number(number) do
-    locale = Keyword.get(options, :locale)
-    locale_options = if locale, do: [locale: locale], else: []
+    locale_options = build_locale_options(options)
     format_number(number, locale_options)
   end
 
@@ -108,6 +106,12 @@ defmodule Units.Formatter do
   end
 
   # ── Private ──
+
+  defp build_locale_options(options) do
+    opts = []
+    opts = if locale = Keyword.get(options, :locale), do: [{:locale, locale} | opts], else: opts
+    [{:max_fractional_digits, @max_fractional_digits} | opts]
+  end
 
   defp format_default(unit, locale_options) do
     case Localize.Unit.to_string(unit, locale_options) do

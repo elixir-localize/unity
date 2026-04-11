@@ -47,7 +47,8 @@ defmodule Units.MixProject do
   defp docs do
     [
       main: "readme",
-      extras: ["README.md", "CHANGELOG.md"],
+      extras: ["README.md", "CHANGELOG.md", "guides/conformance.md"],
+      groups_for_extras: [Guides: ~r/guides\/.*/],
       source_ref: "v#{@version}"
     ]
   end

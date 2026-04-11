@@ -500,137 +500,94 @@ defmodule Units.Interpreter do
   end
 
   # ── Built-in functions ──
+  #
+  # All unit-aware functions delegate to Localize.Unit.Math.
+  # Bare-number overloads use :math directly.
 
-  @unit_functions ~w(sqrt cbrt abs round ceil floor)
-  @dimensionless_functions ~w(sin cos tan asin acos atan ln log log2 exp)
+  @unit_functions %{
+    "sqrt" => :sqrt,
+    "cbrt" => :cbrt,
+    "abs" => :abs,
+    "round" => :round,
+    "ceil" => :ceil,
+    "floor" => :floor
+  }
 
-  defp apply_function(name, args, environment) when name in @unit_functions do
-    case {name, args} do
-      {"sqrt", [%Localize.Unit{value: value} = unit]} ->
-        new_value = :math.sqrt(value)
-        # Try to create the square-root unit name
-        sqrt_unit_name(unit, new_value, environment)
+  @dimensionless_functions %{
+    "sin" => :sin,
+    "cos" => :cos,
+    "tan" => :tan,
+    "asin" => :asin,
+    "acos" => :acos,
+    "atan" => :atan,
+    "ln" => :ln,
+    "log" => :log,
+    "log2" => :log2,
+    "exp" => :exp
+  }
 
-      {"sqrt", [n]} when is_number(n) ->
-        {:ok, :math.sqrt(n), environment}
+  @all_functions Map.keys(@unit_functions) ++ Map.keys(@dimensionless_functions)
 
-      {"cbrt", [%Localize.Unit{value: value} = unit]} ->
-        new_value = :math.pow(value, 1 / 3)
-        cbrt_unit_name(unit, new_value, environment)
+  defp apply_function(name, [%Localize.Unit{} = unit], environment)
+       when is_map_key(@unit_functions, name) do
+    math_fn = Map.fetch!(@unit_functions, name)
 
-      {"cbrt", [n]} when is_number(n) ->
-        {:ok, :math.pow(n, 1 / 3), environment}
-
-      {"abs", [%Localize.Unit{} = unit]} ->
-        new_value = abs(unit.value)
-
-        case Localize.Unit.new(new_value, unit.name) do
-          {:ok, result} -> {:ok, result, environment}
-          {:error, exception} -> {:error, Exception.message(exception)}
-        end
-
-      {"abs", [n]} when is_number(n) ->
-        {:ok, abs(n), environment}
-
-      {"round", [%Localize.Unit{} = unit]} ->
-        new_value = round(unit.value)
-
-        case Localize.Unit.new(new_value, unit.name) do
-          {:ok, result} -> {:ok, result, environment}
-          {:error, exception} -> {:error, Exception.message(exception)}
-        end
-
-      {"round", [n]} when is_number(n) ->
-        {:ok, round(n), environment}
-
-      {"ceil", [%Localize.Unit{} = unit]} ->
-        new_value = Float.ceil(unit.value / 1)
-
-        case Localize.Unit.new(trunc(new_value), unit.name) do
-          {:ok, result} -> {:ok, result, environment}
-          {:error, exception} -> {:error, Exception.message(exception)}
-        end
-
-      {"ceil", [n]} when is_number(n) ->
-        {:ok, Float.ceil(n / 1) |> trunc(), environment}
-
-      {"floor", [%Localize.Unit{} = unit]} ->
-        new_value = Float.floor(unit.value / 1)
-
-        case Localize.Unit.new(trunc(new_value), unit.name) do
-          {:ok, result} -> {:ok, result, environment}
-          {:error, exception} -> {:error, Exception.message(exception)}
-        end
-
-      {"floor", [n]} when is_number(n) ->
-        {:ok, Float.floor(n / 1) |> trunc(), environment}
-
-      {_, _} ->
-        {:error, "#{name} expects exactly 1 argument, got #{length(args)}"}
+    case apply(Localize.Unit.Math, math_fn, [unit]) do
+      {:ok, result} -> {:ok, result, environment}
+      {:error, reason} -> {:error, format_math_error(name, reason)}
     end
   end
 
-  defp apply_function(name, args, environment) when name in @dimensionless_functions do
-    case args do
-      [%Localize.Unit{} = _unit] ->
-        {:error, "#{name} requires a dimensionless argument"}
+  defp apply_function(name, [n], environment)
+       when is_map_key(@unit_functions, name) and is_number(n) do
+    result =
+      case name do
+        "sqrt" -> :math.sqrt(n)
+        "cbrt" -> :math.pow(n, 1 / 3)
+        "abs" -> Kernel.abs(n)
+        "round" -> Kernel.round(n)
+        "ceil" -> Kernel.ceil(n)
+        "floor" -> Kernel.floor(n)
+      end
 
-      [n] when is_number(n) ->
-        result =
-          case name do
-            "sin" -> :math.sin(n)
-            "cos" -> :math.cos(n)
-            "tan" -> :math.tan(n)
-            "asin" -> :math.asin(n)
-            "acos" -> :math.acos(n)
-            "atan" -> :math.atan(n)
-            "ln" -> :math.log(n)
-            "log" -> :math.log10(n)
-            "log2" -> :math.log2(n)
-            "exp" -> :math.exp(n)
-          end
+    {:ok, result, environment}
+  end
 
-        {:ok, result, environment}
+  defp apply_function(name, [%Localize.Unit{} = unit], environment)
+       when is_map_key(@dimensionless_functions, name) do
+    math_fn = Map.fetch!(@dimensionless_functions, name)
 
-      _ ->
-        {:error, "#{name} expects exactly 1 numeric argument"}
+    case Localize.Unit.Math.apply_dimensionless(math_fn, unit) do
+      {:ok, result} -> {:ok, result, environment}
+      {:error, reason} -> {:error, reason}
     end
+  end
+
+  defp apply_function(name, [n], environment)
+       when is_map_key(@dimensionless_functions, name) and is_number(n) do
+    result =
+      case name do
+        "sin" -> :math.sin(n)
+        "cos" -> :math.cos(n)
+        "tan" -> :math.tan(n)
+        "asin" -> :math.asin(n)
+        "acos" -> :math.acos(n)
+        "atan" -> :math.atan(n)
+        "ln" -> :math.log(n)
+        "log" -> :math.log10(n)
+        "log2" -> :math.log2(n)
+        "exp" -> :math.exp(n)
+      end
+
+    {:ok, result, environment}
+  end
+
+  defp apply_function(name, args, _environment) when name in @all_functions do
+    {:error, "#{name} expects exactly 1 argument, got #{length(args)}"}
   end
 
   defp apply_function(name, _args, _environment) do
     {:error, "unknown function: #{inspect(name)}"}
-  end
-
-  # sqrt of "square-X" → "X"
-  defp sqrt_unit_name(%Localize.Unit{name: name}, new_value, environment) do
-    cond do
-      String.starts_with?(name, "square-") ->
-        base_name = String.replace_prefix(name, "square-", "")
-
-        case Localize.Unit.new(new_value, base_name) do
-          {:ok, result} -> {:ok, result, environment}
-          {:error, exception} -> {:error, Exception.message(exception)}
-        end
-
-      true ->
-        {:error, "cannot take square root of #{inspect(name)} — unit must be square-*"}
-    end
-  end
-
-  # cbrt of "cubic-X" → "X"
-  defp cbrt_unit_name(%Localize.Unit{name: name}, new_value, environment) do
-    cond do
-      String.starts_with?(name, "cubic-") ->
-        base_name = String.replace_prefix(name, "cubic-", "")
-
-        case Localize.Unit.new(new_value, base_name) do
-          {:ok, result} -> {:ok, result, environment}
-          {:error, exception} -> {:error, Exception.message(exception)}
-        end
-
-      true ->
-        {:error, "cannot take cube root of #{inspect(name)} — unit must be cubic-*"}
-    end
   end
 
   defp format_math_error(operation, reason) when is_binary(reason) do
