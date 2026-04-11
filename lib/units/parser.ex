@@ -337,10 +337,10 @@ defmodule Units.Parser do
   ### Examples
 
       iex> Units.Parser.parse("3 meters")
-      {:ok, {:quantity, 3, "meters"}}
+      {:ok, {:quantity, 3, {:unit_name, "meters"}}}
 
       iex> Units.Parser.parse("3 meters to feet")
-      {:ok, {:convert, {:quantity, 3, "meters"}, {:unit_name, "feet"}}}
+      {:ok, {:convert, {:quantity, 3, {:unit_name, "meters"}}, {:unit_name, "feet"}}}
 
   """
   @spec parse(String.t()) :: {:ok, term()} | {:error, String.t()}
@@ -349,8 +349,8 @@ defmodule Units.Parser do
       {:ok, [ast], "", _context, _line, _offset} ->
         {:ok, ast}
 
-      {:ok, [ast], rest, _context, _line, _offset} ->
-        {:error, "unexpected input after expression: #{inspect(rest)}", ast}
+      {:ok, [_ast], rest, _context, _line, _offset} ->
+        {:error, "unexpected input after expression: #{inspect(rest)}"}
 
       {:error, message, _rest, _context, {line, _}, offset} ->
         {:error, format_parse_error(input, message, line, offset)}
@@ -371,7 +371,7 @@ defmodule Units.Parser do
   ### Examples
 
       iex> Units.Parser.parse!("3 meters")
-      {:quantity, 3, "meters"}
+      {:quantity, 3, {:unit_name, "meters"}}
 
   """
   @spec parse!(String.t()) :: term()
@@ -379,7 +379,6 @@ defmodule Units.Parser do
     case parse(input) do
       {:ok, ast} -> ast
       {:error, message} -> raise ArgumentError, message
-      {:error, message, _partial} -> raise ArgumentError, message
     end
   end
 

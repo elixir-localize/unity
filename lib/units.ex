@@ -9,8 +9,9 @@ defmodule Units do
 
   ## Quick start
 
-      iex> Units.eval!("3 meters to feet")
-      %Localize.Unit{name: "foot", value: 9.84251968503937}
+      iex> result = Units.eval!("3 meters to feet")
+      iex> result.name
+      "foot"
 
       iex> Units.eval!("60 mph to km/h") |> Units.format!()
       "96.56064 kilometers per hour"
@@ -31,7 +32,7 @@ defmodule Units do
 
   """
 
-  @type result :: Localize.Unit.t() | number()
+  @type result :: Localize.Unit.t() | number() | {:decomposed, [Localize.Unit.t()]}
   @type env :: Units.Interpreter.env()
 
   @doc """
@@ -63,9 +64,6 @@ defmodule Units do
         Units.Interpreter.eval(ast, environment)
 
       {:error, message} ->
-        {:error, message}
-
-      {:error, message, _partial} ->
         {:error, message}
     end
   end

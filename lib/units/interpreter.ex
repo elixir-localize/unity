@@ -9,7 +9,7 @@ defmodule Units.Interpreter do
   """
 
   @type env :: %{String.t() => Localize.Unit.t() | number()}
-  @type result :: Localize.Unit.t() | number()
+  @type result :: Localize.Unit.t() | number() | {:decomposed, [Localize.Unit.t()]}
 
   @doc """
   Evaluates a parsed AST in the given environment.
@@ -347,24 +347,18 @@ defmodule Units.Interpreter do
   end
 
   defp mult_values(%Localize.Unit{} = left, %Localize.Unit{} = right, environment) do
-    case Localize.Unit.Math.mult(left, right) do
-      {:ok, result} -> {:ok, result, environment}
-      {:error, reason} -> {:error, format_math_error("multiply", reason)}
-    end
+    {:ok, result} = Localize.Unit.Math.mult(left, right)
+    {:ok, result, environment}
   end
 
   defp mult_values(%Localize.Unit{} = unit, number, environment) when is_number(number) do
-    case Localize.Unit.Math.mult(unit, number) do
-      {:ok, result} -> {:ok, result, environment}
-      {:error, reason} -> {:error, format_math_error("multiply", reason)}
-    end
+    {:ok, result} = Localize.Unit.Math.mult(unit, number)
+    {:ok, result, environment}
   end
 
   defp mult_values(number, %Localize.Unit{} = unit, environment) when is_number(number) do
-    case Localize.Unit.Math.mult(unit, number) do
-      {:ok, result} -> {:ok, result, environment}
-      {:error, reason} -> {:error, format_math_error("multiply", reason)}
-    end
+    {:ok, result} = Localize.Unit.Math.mult(unit, number)
+    {:ok, result, environment}
   end
 
   defp mult_values(left, right, environment) when is_number(left) and is_number(right) do
@@ -376,35 +370,24 @@ defmodule Units.Interpreter do
   end
 
   defp div_values(%Localize.Unit{} = left, %Localize.Unit{} = right, environment) do
-    case Localize.Unit.Math.div(left, right) do
-      {:ok, result} -> {:ok, result, environment}
-      {:error, reason} -> {:error, format_math_error("divide", reason)}
-    end
+    {:ok, result} = Localize.Unit.Math.div(left, right)
+    {:ok, result, environment}
   end
 
   defp div_values(%Localize.Unit{} = unit, number, environment) when is_number(number) do
     if number == 0 do
       {:error, "division by zero"}
     else
-      case Localize.Unit.Math.div(unit, number) do
-        {:ok, result} -> {:ok, result, environment}
-        {:error, reason} -> {:error, format_math_error("divide", reason)}
-      end
+      {:ok, result} = Localize.Unit.Math.div(unit, number)
+      {:ok, result, environment}
     end
   end
 
   defp div_values(number, %Localize.Unit{} = unit, environment) when is_number(number) do
-    # number / unit → create unit with value number, then invert
-    case Localize.Unit.Math.invert(unit) do
-      {:ok, inverted} ->
-        case Localize.Unit.Math.mult(inverted, number) do
-          {:ok, result} -> {:ok, result, environment}
-          {:error, reason} -> {:error, format_math_error("divide", reason)}
-        end
-
-      {:error, reason} ->
-        {:error, format_math_error("divide", reason)}
-    end
+    # number / unit → invert the unit then multiply by the number
+    {:ok, inverted} = Localize.Unit.Math.invert(unit)
+    {:ok, result} = Localize.Unit.Math.mult(inverted, number)
+    {:ok, result, environment}
   end
 
   defp div_values(left, right, environment) when is_number(left) and is_number(right) do
@@ -465,12 +448,13 @@ defmodule Units.Interpreter do
   end
 
   defp repeated_mult(unit, n, environment) when n > 1 do
-    Enum.reduce_while(2..n, {:ok, unit, environment}, fn _i, {:ok, acc, env} ->
-      case Localize.Unit.Math.mult(acc, unit) do
-        {:ok, result} -> {:cont, {:ok, result, env}}
-        {:error, reason} -> {:halt, {:error, format_math_error("power", reason)}}
-      end
-    end)
+    result =
+      Enum.reduce(2..n, unit, fn _i, acc ->
+        {:ok, product} = Localize.Unit.Math.mult(acc, unit)
+        product
+      end)
+
+    {:ok, result, environment}
   end
 
   defp repeated_mult(unit, n, environment) when n < 0 do

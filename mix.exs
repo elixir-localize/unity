@@ -40,7 +40,8 @@ defmodule Units.MixProject do
   defp package do
     [
       licenses: ["Apache-2.0"],
-      links: %{"GitHub" => @source_url}
+      links: %{"GitHub" => @source_url},
+      files: ~w(lib .formatter.exs mix.exs README.md CHANGELOG.md LICENSE.md)
     ]
   end
 
@@ -57,6 +58,7 @@ defmodule Units.MixProject do
     [
       {:localize, path: "../localize"},
       {:nimble_parsec, "~> 1.0"},
+      {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},
       {:ex_doc, "~> 0.34", only: :release, runtime: false}
     ]
   end

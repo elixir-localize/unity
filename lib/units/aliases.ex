@@ -232,9 +232,11 @@ defmodule Units.Aliases do
     "inch" => "inch"
   }
 
-  @all_known_names Localize.Unit.known_units_by_category()
-                   |> Enum.flat_map(fn {_category, names} -> names end)
-                   |> MapSet.new()
+  @all_known_names_set Localize.Unit.known_units_by_category()
+                       |> Enum.flat_map(fn {_category, names} -> names end)
+                       |> MapSet.new()
+
+  @all_known_names_list MapSet.to_list(@all_known_names_set)
 
   @doc """
   Resolves a user-provided unit name to a CLDR unit identifier.
@@ -268,7 +270,7 @@ defmodule Units.Aliases do
   def resolve(name) do
     case Map.get(@aliases, name) do
       nil ->
-        if MapSet.member?(@all_known_names, name) do
+        if MapSet.member?(@all_known_names_set, name) do
           {:ok, name}
         else
           try_as_cldr_name(name)
@@ -292,9 +294,9 @@ defmodule Units.Aliases do
   Returns all known unit names (both aliases and CLDR base names).
 
   """
-  @spec all_known_names() :: MapSet.t()
+  @spec all_known_names() :: [String.t()]
   def all_known_names do
-    @all_known_names
+    @all_known_names_list
   end
 
   @doc """
@@ -323,7 +325,7 @@ defmodule Units.Aliases do
     max_results = Keyword.get(options, :max_results, 5)
     threshold = Keyword.get(options, :threshold, 0.7)
 
-    all_names = Map.keys(@aliases) ++ MapSet.to_list(@all_known_names)
+    all_names = Map.keys(@aliases) ++ @all_known_names_list
 
     all_names
     |> Enum.map(fn known -> {known, String.jaro_distance(name, known)} end)

@@ -23,6 +23,8 @@ defmodule Units.CLI do
 
   """
 
+  @version Mix.Project.config()[:version]
+
   @doc """
   Main entry point for escript execution.
 
@@ -60,7 +62,7 @@ defmodule Units.CLI do
 
     cond do
       options[:version] ->
-        IO.puts("Units v#{Mix.Project.config()[:version]}")
+        IO.puts("Units v#{@version}")
 
       options[:help] ->
         print_usage()
@@ -106,9 +108,6 @@ defmodule Units.CLI do
 
           {:error, message} ->
             IO.puts(:stderr, Units.Error.format(message))
-
-          {:error, message, _partial} ->
-            IO.puts(:stderr, Units.Error.format(message))
         end
       end
     end)
@@ -153,9 +152,6 @@ defmodule Units.CLI do
         end
 
       {:error, message} ->
-        error_exit(message)
-
-      {:error, message, _partial} ->
         error_exit(message)
     end
   end
@@ -228,6 +224,7 @@ defmodule Units.CLI do
     repl_options
   end
 
+  @spec error_exit(String.t()) :: no_return()
   defp error_exit(message) do
     IO.puts(:stderr, Units.Error.format(message))
     System.halt(1)

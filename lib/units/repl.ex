@@ -116,6 +116,9 @@ defmodule Units.Repl do
     {:continue, environment}
   end
 
+  # Dialyzer's success typing cannot trace {:decomposed, _} through the
+  # eval chain, but it is a valid runtime return from mixed-unit conversions.
+  @dialyzer {:nowarn_function, handle_input: 2}
   defp handle_input(input, environment) do
     case Units.eval(input, environment) do
       {:ok, result, environment} ->
@@ -127,25 +130,22 @@ defmodule Units.Repl do
             IO.puts(Units.Error.format(reason))
         end
 
-        # Store the result as "_" so it can be referenced in subsequent expressions
-        result_for_env = unwrap_decomposed(result)
+        # Store the result as "_" so it can be referenced in subsequent expressions.
+        # For decomposed results, store the first (largest) component.
+        result_for_env =
+          case result do
+            {:decomposed, [first | _]} -> first
+            other -> other
+          end
+
         environment = Map.put(environment, "_", result_for_env)
         {:continue, environment}
 
       {:error, message} ->
         IO.puts(Units.Error.format(message))
         {:continue, environment}
-
-      {:error, message, _partial} ->
-        IO.puts(Units.Error.format(message))
-        {:continue, environment}
     end
   end
-
-  # When storing a decomposed result as _, use the first component
-  # (the largest unit) so it can be meaningfully reused.
-  defp unwrap_decomposed({:decomposed, [first | _]}), do: first
-  defp unwrap_decomposed(result), do: result
 
   # ── Search ──
 
@@ -160,7 +160,6 @@ defmodule Units.Repl do
     # Search through CLDR unit names
     cldr_matches =
       Units.Aliases.all_known_names()
-      |> MapSet.to_list()
       |> Enum.filter(&String.contains?(&1, query_down))
 
     # Combine, resolve to CLDR names, deduplicate
@@ -203,43 +202,45 @@ defmodule Units.Repl do
   defp load_history(nil), do: :ok
 
   defp load_history(path) do
-    case File.read(path) do
-      {:ok, content} ->
-        content
-        |> String.split("\n", trim: true)
-        |> Enum.each(fn line ->
-          :group_history.add(String.to_charlist(line))
-        end)
+    if group_history_available?() do
+      case File.read(path) do
+        {:ok, content} ->
+          content
+          |> String.split("\n", trim: true)
+          |> Enum.each(fn line ->
+            apply(:group_history, :add, [String.to_charlist(line)])
+          end)
 
-      {:error, _} ->
-        :ok
+        {:error, _} ->
+          :ok
+      end
     end
-  rescue
-    UndefinedFunctionError -> :ok
   end
 
   defp save_history(nil), do: :ok
 
   defp save_history(path) do
-    history =
-      case :group_history.get() do
+    if group_history_available?() do
+      case apply(:group_history, :get, []) do
         lines when is_list(lines) ->
-          lines
-          |> Enum.reverse()
-          |> Enum.take(-500)
-          |> Enum.map_join("\n", &List.to_string/1)
+          history =
+            lines
+            |> Enum.reverse()
+            |> Enum.take(-500)
+            |> Enum.map_join("\n", &List.to_string/1)
+
+          if history != "" do
+            File.write(path, history <> "\n")
+          end
 
         _ ->
-          ""
+          :ok
       end
-
-    if history != "" do
-      File.write(path, history <> "\n")
     end
+  end
 
-    :ok
-  rescue
-    UndefinedFunctionError -> :ok
+  defp group_history_available? do
+    Code.ensure_loaded?(:group_history) and function_exported?(:group_history, :get, 0)
   end
 
   # ── Help ──
