@@ -60,9 +60,55 @@ defmodule Units.CLI do
       positional != [] ->
         run_expression(positional, options)
 
+      not io_tty?() ->
+        run_stdin(options)
+
       true ->
         repl_options = build_repl_options(options)
         Units.Repl.start(repl_options)
+    end
+  end
+
+  defp run_stdin(options) do
+    if locale = options[:locale] do
+      Localize.put_locale(locale)
+    end
+
+    format = format_from_options(options)
+
+    IO.stream(:stdio, :line)
+    |> Enum.each(fn line ->
+      expression = String.trim(line)
+
+      if expression != "" do
+        format_options = [format: format, input: expression]
+
+        format_options =
+          if options[:locale],
+            do: [{:locale, options[:locale]} | format_options],
+            else: format_options
+
+        case Units.eval(expression) do
+          {:ok, result, _env} ->
+            case Units.Formatter.format(result, format_options) do
+              {:ok, formatted} -> IO.puts(formatted)
+              {:error, reason} -> IO.puts(:stderr, Units.Error.format(reason))
+            end
+
+          {:error, message} ->
+            IO.puts(:stderr, Units.Error.format(message))
+
+          {:error, message, _partial} ->
+            IO.puts(:stderr, Units.Error.format(message))
+        end
+      end
+    end)
+  end
+
+  defp io_tty? do
+    case :io.getopts(:standard_io) do
+      opts when is_list(opts) -> Keyword.get(opts, :echo, false) != false
+      _ -> false
     end
   end
 
@@ -73,18 +119,22 @@ defmodule Units.CLI do
 
     expression =
       case positional do
-        [expr] -> expr
-        [from, to] -> "#{from} to #{to}"
-        _ -> Enum.join(positional, " ")
+        # "units - feet" reads from stdin for the source
+        ["-", target] ->
+          source = IO.read(:stdio, :eof) |> String.trim()
+          "#{source} to #{target}"
+
+        [expr] ->
+          expr
+
+        [from, to] ->
+          "#{from} to #{to}"
+
+        _ ->
+          Enum.join(positional, " ")
       end
 
-    format =
-      cond do
-        options[:verbose] -> :verbose
-        options[:terse] -> :terse
-        true -> :default
-      end
-
+    format = format_from_options(options)
     format_options = [format: format, input: expression]
 
     format_options =
@@ -136,6 +186,14 @@ defmodule Units.CLI do
     case Map.get(by_category, category) do
       nil -> error_exit("unknown category: #{inspect(category)}")
       units -> IO.puts(Enum.sort(units) |> Enum.join(", "))
+    end
+  end
+
+  defp format_from_options(options) do
+    cond do
+      options[:verbose] -> :verbose
+      options[:terse] -> :terse
+      true -> :default
     end
   end
 

@@ -116,6 +116,15 @@ defmodule Units.Parser do
     |> ignore(ascii_char([?)]))
     |> reduce(:build_function_call)
 
+  # ── Variable reference ──
+  # "_" refers to the previous result in the REPL.
+  # Named variables (from `let`) are also referenced by identifier.
+
+  variable_ref =
+    string("_")
+    |> lookahead_not(ascii_char([?a..?z, ?A..?Z, ?0..?9]))
+    |> replace({:variable, "_"})
+
   # ── Unit name with optional concatenated exponent ──
   # "cm3" → {:power, {:unit_name, "cm"}, 3}
   # The identifier already consumes trailing digits, so we split them off
@@ -152,6 +161,7 @@ defmodule Units.Parser do
     choice([
       paren_expr,
       function_call,
+      variable_ref,
       number |> lookahead_not(ignore(optional_ws) |> concat(unit_identifier)),
       quantity
     ])
@@ -174,7 +184,42 @@ defmodule Units.Parser do
     )
     |> reduce(:build_factor)
 
-  # ── Term: factors joined by *, /, per, or juxtaposition ──
+  # ── Juxtaposition: space-separated factors, implicit multiplication ──
+  # Higher precedence than explicit * and /, so `kg m / s^2` = `(kg * m) / s^2`.
+  # Must not match before keywords (to, in, per) or operators (+, -, *, /, ->).
+
+  juxta_sep =
+    ignore(ws)
+    |> lookahead_not(
+      choice([
+        string("to "),
+        string("to\t"),
+        string("in "),
+        string("in\t"),
+        string("per "),
+        string("per\t"),
+        string("->"),
+        ascii_char([?+, ?*, ?/])
+      ])
+    )
+    |> lookahead(
+      choice([
+        ascii_char([?a..?z, ?A..?Z, ?(]),
+        string("°"),
+        string("µ")
+      ])
+    )
+
+  juxta_term =
+    factor
+    |> repeat(
+      juxta_sep
+      |> replace(:mult)
+      |> concat(factor)
+    )
+    |> reduce(:build_juxta_term)
+
+  # ── Term: juxta_terms joined by *, /, per ──
 
   mult_op =
     choice([
@@ -187,10 +232,10 @@ defmodule Units.Parser do
     ])
 
   term =
-    factor
+    juxta_term
     |> repeat(
       mult_op
-      |> concat(factor)
+      |> concat(juxta_term)
     )
     |> reduce(:build_term)
 
@@ -211,6 +256,8 @@ defmodule Units.Parser do
     |> reduce(:build_computation)
 
   # ── Conversion: computation followed by "to"/"in"/"->" and a target ──
+  # Target can be a single unit or a mixed-unit list separated by ";"
+  # e.g. "3.756 hours to h;min;s"
 
   conversion_op =
     choice([
@@ -219,11 +266,29 @@ defmodule Units.Parser do
       ignore(ws) |> string("in") |> ignore(ws) |> replace(:convert)
     ])
 
+  # Mixed-unit target requires at least two units separated by ";"
+  # e.g. "h;min;s" — a single unit target falls through to `computation`.
+  mixed_unit_target =
+    unit_name
+    |> times(
+      ignore(optional_ws)
+      |> ignore(ascii_char([?;]))
+      |> ignore(optional_ws)
+      |> concat(unit_name),
+      min: 1
+    )
+    |> reduce(:build_mixed_target)
+
   expression =
     computation
     |> optional(
       conversion_op
-      |> concat(computation)
+      |> concat(
+        choice([
+          mixed_unit_target,
+          computation
+        ])
+      )
       |> reduce(:mark_conversion)
     )
     |> reduce(:build_expression)
@@ -426,6 +491,11 @@ defmodule Units.Parser do
   end
 
   @doc false
+  def build_juxta_term(parts) do
+    build_left_assoc(parts)
+  end
+
+  @doc false
   def build_term(parts) do
     build_left_assoc(parts)
   end
@@ -433,6 +503,11 @@ defmodule Units.Parser do
   @doc false
   def build_computation(parts) do
     build_left_assoc(parts)
+  end
+
+  @doc false
+  def build_mixed_target(parts) do
+    {:mixed_units, parts}
   end
 
   @doc false

@@ -67,11 +67,18 @@ defmodule Units.Interpreter do
   end
 
   # ── Unit name (bare unit, implicit quantity 1) ──
+  # Check the environment first — the name might be a variable.
 
   def eval({:unit_name, name}, environment) do
-    case resolve_and_create(1, name) do
-      {:ok, unit} -> {:ok, unit, environment}
-      {:error, reason} -> {:error, reason}
+    case Map.fetch(environment, name) do
+      {:ok, value} ->
+        {:ok, value, environment}
+
+      :error ->
+        case resolve_and_create(1, name) do
+          {:ok, unit} -> {:ok, unit, environment}
+          {:error, reason} -> {:error, reason}
+        end
     end
   end
 
@@ -91,6 +98,12 @@ defmodule Units.Interpreter do
   end
 
   # ── Conversion ──
+
+  def eval({:convert, expr, {:mixed_units, unit_asts}}, environment) do
+    with {:ok, value, environment} <- eval(expr, environment) do
+      decompose_value(value, unit_asts, environment)
+    end
+  end
 
   def eval({:convert, expr, target_ast}, environment) do
     with {:ok, value, environment} <- eval(expr, environment),
@@ -269,6 +282,36 @@ defmodule Units.Interpreter do
   defp convert_value(number, target_name) when is_number(number) do
     {:error,
      "cannot convert bare number #{number} to #{inspect(target_name)} — specify a source unit"}
+  end
+
+  # ── Mixed-unit decomposition ──
+
+  defp decompose_value(%Localize.Unit{} = unit, unit_asts, environment) do
+    with {:ok, target_names} <- resolve_unit_list(unit_asts) do
+      case Localize.Unit.decompose(unit, target_names) do
+        {:ok, parts} ->
+          {:ok, {:decomposed, parts}, environment}
+
+        {:error, exception} when is_exception(exception) ->
+          {:error, Exception.message(exception)}
+
+        {:error, reason} ->
+          {:error, "decomposition error: #{inspect(reason)}"}
+      end
+    end
+  end
+
+  defp decompose_value(_value, _unit_asts, _environment) do
+    {:error, "mixed-unit decomposition requires a unit value"}
+  end
+
+  defp resolve_unit_list(unit_asts) do
+    Enum.reduce_while(unit_asts, {:ok, []}, fn ast, {:ok, acc} ->
+      case resolve_unit_ast(ast) do
+        {:ok, name} -> {:cont, {:ok, acc ++ [name]}}
+        {:error, _} = error -> {:halt, error}
+      end
+    end)
   end
 
   # ── Arithmetic dispatch ──

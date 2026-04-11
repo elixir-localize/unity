@@ -48,6 +48,24 @@ defmodule Units.Formatter do
           {:ok, String.t()} | {:error, String.t()}
   def format(result, options \\ [])
 
+  def format({:decomposed, parts}, options) when is_list(parts) do
+    locale = Keyword.get(options, :locale)
+    locale_options = if locale, do: [locale: locale], else: []
+
+    results =
+      Enum.reduce_while(parts, {:ok, []}, fn unit, {:ok, acc} ->
+        case Localize.Unit.to_string(unit, locale_options) do
+          {:ok, str} -> {:cont, {:ok, [str | acc]}}
+          {:error, exception} -> {:halt, {:error, Exception.message(exception)}}
+        end
+      end)
+
+    case results do
+      {:ok, strings} -> {:ok, Enum.reverse(strings) |> Enum.join(", ")}
+      {:error, _} = error -> error
+    end
+  end
+
   def format(%Localize.Unit{} = unit, options) do
     format_mode = Keyword.get(options, :format, :default)
     locale = Keyword.get(options, :locale)

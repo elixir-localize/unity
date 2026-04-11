@@ -102,9 +102,6 @@ defmodule Units.Repl do
   end
 
   defp handle_input(input, environment) do
-    # Replace _ with previous result reference
-    input = preprocess_underscore(input, environment)
-
     case Units.eval(input, environment) do
       {:ok, result, environment} ->
         case Units.Formatter.format(result) do
@@ -115,7 +112,9 @@ defmodule Units.Repl do
             IO.puts(Units.Error.format(reason))
         end
 
-        environment = Map.put(environment, "_", result)
+        # Store the result as "_" so it can be referenced in subsequent expressions
+        result_for_env = unwrap_decomposed(result)
+        environment = Map.put(environment, "_", result_for_env)
         {:continue, environment}
 
       {:error, message} ->
@@ -128,31 +127,10 @@ defmodule Units.Repl do
     end
   end
 
-  defp preprocess_underscore(input, environment) do
-    case Map.get(environment, "_") do
-      nil ->
-        input
-
-      previous ->
-        if String.contains?(input, "_") do
-          # If the input starts with "_ to X", create a conversion expression
-          # using the previous result's string representation
-          previous_str = format_previous(previous)
-
-          String.replace(input, "_", previous_str)
-        else
-          input
-        end
-    end
-  end
-
-  defp format_previous(%Localize.Unit{value: value, name: name}) do
-    "#{value} #{name}"
-  end
-
-  defp format_previous(number) when is_number(number) do
-    to_string(number)
-  end
+  # When storing a decomposed result as _, use the first component
+  # (the largest unit) so it can be meaningfully reused.
+  defp unwrap_decomposed({:decomposed, [first | _]}), do: first
+  defp unwrap_decomposed(result), do: result
 
   defp print_help do
     IO.puts("""

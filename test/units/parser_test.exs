@@ -157,6 +157,56 @@ defmodule Units.ParserTest do
     end
   end
 
+  describe "juxtaposition multiplication" do
+    test "two bare units" do
+      assert {:ok, {:mult, {:unit_name, "kg"}, {:unit_name, "m"}}} =
+               Parser.parse("kg m")
+    end
+
+    test "higher precedence than division" do
+      # kg m / s^2 → (kg * m) / s^2
+      assert {:ok,
+              {:div, {:mult, {:unit_name, "kg"}, {:unit_name, "m"}},
+               {:power, {:unit_name, "s"}, {:number, 2}}}} =
+               Parser.parse("kg m / s^2")
+    end
+
+    test "GNU units: m / s s = m / (s*s)" do
+      assert {:ok, {:div, {:unit_name, "m"}, {:mult, {:unit_name, "s"}, {:unit_name, "s"}}}} =
+               Parser.parse("m / s s")
+    end
+
+    test "parenthesized expression juxtaposed with unit" do
+      assert {:ok, {:mult, {:add, {:number, 3}, {:number, 4}}, {:unit_name, "m"}}} =
+               Parser.parse("(3 + 4) m")
+    end
+
+    test "does not interfere with to keyword" do
+      assert {:ok, {:convert, {:quantity, 3, {:unit_name, "meters"}}, {:unit_name, "feet"}}} =
+               Parser.parse("3 meters to feet")
+    end
+
+    test "does not interfere with in keyword" do
+      assert {:ok, {:convert, {:quantity, 3, {:unit_name, "meters"}}, {:unit_name, "feet"}}} =
+               Parser.parse("3 meters in feet")
+    end
+
+    test "does not interfere with per keyword" do
+      assert {:ok, {:div, {:quantity, 5, {:unit_name, "miles"}}, {:unit_name, "hour"}}} =
+               Parser.parse("5 miles per hour")
+    end
+
+    test "does not interfere with addition" do
+      assert {:ok, {:add, {:quantity, 3, {:unit_name, "m"}}, {:quantity, 5, {:unit_name, "m"}}}} =
+               Parser.parse("3 m + 5 m")
+    end
+
+    test "three units juxtaposed" do
+      assert {:ok, {:mult, {:mult, {:unit_name, "kg"}, {:unit_name, "m"}}, {:unit_name, "s"}}} =
+               Parser.parse("kg m s")
+    end
+  end
+
   describe "parentheses" do
     test "parenthesized arithmetic" do
       assert {:ok, {:add, {:number, 3}, {:number, 4}}} =
@@ -186,10 +236,47 @@ defmodule Units.ParserTest do
     end
   end
 
+  describe "variables" do
+    test "underscore as variable" do
+      assert {:ok, {:variable, "_"}} = Parser.parse("_")
+    end
+
+    test "underscore in conversion" do
+      assert {:ok, {:convert, {:variable, "_"}, {:unit_name, "cm"}}} =
+               Parser.parse("_ to cm")
+    end
+
+    test "underscore in arithmetic" do
+      assert {:ok, {:add, {:variable, "_"}, {:quantity, 5, {:unit_name, "m"}}}} =
+               Parser.parse("_ + 5 m")
+    end
+  end
+
   describe "let bindings" do
     test "simple let binding" do
       assert {:ok, {:let, "x", {:quantity, 3, {:unit_name, "m"}}}} =
                Parser.parse("let x = 3 m")
+    end
+  end
+
+  describe "mixed-unit target" do
+    test "two units" do
+      assert {:ok, {:convert, {:quantity, 1.5, {:unit_name, "hours"}}, {:mixed_units, targets}}} =
+               Parser.parse("1.5 hours to h;min")
+
+      assert [{:unit_name, "h"}, {:unit_name, "min"}] = targets
+    end
+
+    test "three units" do
+      assert {:ok, {:convert, _, {:mixed_units, targets}}} =
+               Parser.parse("3.756 hours to h;min;s")
+
+      assert [{:unit_name, "h"}, {:unit_name, "min"}, {:unit_name, "s"}] = targets
+    end
+
+    test "single unit target does not produce mixed_units" do
+      assert {:ok, {:convert, _, {:unit_name, "feet"}}} =
+               Parser.parse("3 meters to feet")
     end
   end
 

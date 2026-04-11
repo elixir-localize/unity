@@ -222,10 +222,85 @@ defmodule Units.InterpreterTest do
     end
   end
 
-  describe "let bindings" do
+  describe "let bindings and variable references" do
     test "simple variable binding" do
       {_result, env} = eval!("let x = 3 m")
       assert %Localize.Unit{value: 3, name: "meter"} = env["x"]
+    end
+
+    test "variable reference in conversion" do
+      {_, env} = eval!("let distance = 42.195 km")
+      {result, _env} = eval!("distance to miles", env)
+      assert result.name == "mile"
+      assert_in_delta result.value, 26.219, 0.01
+    end
+
+    test "variable reference in arithmetic" do
+      {_, env} = eval!("let x = 10 m")
+      {result, _env} = eval!("x + 5 m", env)
+      assert result.name == "meter"
+      assert_in_delta result.value, 15, 0.001
+    end
+
+    test "underscore references previous result" do
+      env = %{"_" => Localize.Unit.new!(10, "meter")}
+      {result, _env} = eval!("_ to cm", env)
+      assert result.name == "centimeter"
+      assert_in_delta result.value, 1000, 0.001
+    end
+
+    test "underscore in arithmetic" do
+      env = %{"_" => Localize.Unit.new!(10, "meter")}
+      {result, _env} = eval!("_ + 5 m", env)
+      assert result.name == "meter"
+      assert_in_delta result.value, 15, 0.001
+    end
+  end
+
+  describe "juxtaposition multiplication" do
+    test "kg m evaluates to compound unit" do
+      {result, _env} = eval!("kg m")
+      assert result.name == "kilogram-meter"
+    end
+
+    test "kg m / s^2 evaluates correctly (juxtaposition higher than /)" do
+      {result, _env} = eval!("kg m / s^2")
+      assert result.name == "kilogram-meter-per-square-second"
+    end
+
+    test "(3 + 4) m evaluates to 7 meters" do
+      {result, _env} = eval!("(3 + 4) * m")
+      assert result.name == "meter"
+      assert_in_delta result.value, 7, 0.001
+    end
+
+    test "parenthesized juxtaposition" do
+      {result, _env} = eval!("(3 + 4) m")
+      assert result.name == "meter"
+      assert_in_delta result.value, 7, 0.001
+    end
+  end
+
+  describe "mixed-unit decomposition" do
+    test "hours to h;min;s" do
+      {result, _env} = eval!("3.756 hours to h;min;s")
+      assert {:decomposed, parts} = result
+      assert length(parts) == 3
+
+      [hours, minutes, seconds] = parts
+      assert hours.name == "hour"
+      assert hours.value == 3
+      assert minutes.name == "minute"
+      assert minutes.value == 45
+      assert_in_delta seconds.value, 21.6, 0.1
+    end
+
+    test "formats mixed-unit result" do
+      {result, _env} = eval!("3.756 hours to h;min;s")
+      assert {:ok, formatted} = Units.Formatter.format(result)
+      assert formatted =~ "hour"
+      assert formatted =~ "minute"
+      assert formatted =~ "second"
     end
   end
 

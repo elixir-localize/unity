@@ -2,12 +2,18 @@ defmodule Units.MixProject do
   use Mix.Project
 
   @version "0.1.0"
+  @source_url "https://github.com/elixir-localize/units"
 
   def project do
     [
       app: :units,
       version: @version,
       elixir: "~> 1.19",
+      name: "Units",
+      source_url: @source_url,
+      docs: docs(),
+      description: description(),
+      package: package(),
       start_permanent: Mix.env() == :prod,
       escript: escript(),
       deps: deps()
@@ -24,10 +30,33 @@ defmodule Units.MixProject do
     [main_module: Units.CLI]
   end
 
+  defp description do
+    """
+    An Elixir unit conversion calculator inspired by the Unix `units` utility.
+    Parses and evaluates unit expressions with locale-aware output powered by Localize.
+    """
+  end
+
+  defp package do
+    [
+      licenses: ["Apache-2.0"],
+      links: %{"GitHub" => @source_url}
+    ]
+  end
+
+  defp docs do
+    [
+      main: "readme",
+      extras: ["README.md", "CHANGELOG.md"],
+      source_ref: "v#{@version}"
+    ]
+  end
+
   defp deps do
     [
       {:localize, path: "../localize"},
-      {:nimble_parsec, "~> 1.0"}
+      {:nimble_parsec, "~> 1.0"},
+      {:ex_doc, "~> 0.34", only: :release, runtime: false}
     ]
   end
 end
