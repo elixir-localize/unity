@@ -281,6 +281,38 @@ defmodule Units.InterpreterTest do
     end
   end
 
+  describe "measurement system conversion" do
+    test "convert to us system" do
+      {result, _env} = eval!("100 meter to us")
+      assert result.name == "mile"
+      assert_in_delta result.value, 0.0621, 0.001
+    end
+
+    test "convert to metric system" do
+      {result, _env} = eval!("100 meter to metric")
+      assert result.name == "kilometer"
+      assert_in_delta result.value, 0.1, 0.001
+    end
+
+    test "convert celsius to us" do
+      {result, _env} = eval!("100 celsius to us")
+      assert result.name == "fahrenheit"
+      assert_in_delta result.value, 212, 0.01
+    end
+
+    test "convert to imperial" do
+      {result, _env} = eval!("100 meter to imperial")
+      assert result.name == "mile"
+    end
+
+    test "convert to preferred uses locale" do
+      Localize.put_locale(:de)
+      {result, _env} = eval!("100 fahrenheit to preferred")
+      assert result.name == "celsius"
+      Localize.put_locale(:en)
+    end
+  end
+
   describe "mixed-unit decomposition" do
     test "hours to h;min;s" do
       {result, _env} = eval!("3.756 hours to h;min;s")

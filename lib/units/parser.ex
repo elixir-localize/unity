@@ -266,6 +266,22 @@ defmodule Units.Parser do
       ignore(ws) |> string("in") |> ignore(ws) |> replace(:convert)
     ])
 
+  # Measurement system target: "preferred", "metric", "SI", "us", "US",
+  # "imperial", "uk", "UK". The lookahead_not prevents partial matches
+  # like "usb" or "metric-ton" from being consumed as system keywords.
+  system_target =
+    choice([
+      string("preferred") |> replace({:preferred_system}),
+      string("metric") |> replace({:measurement_system, :metric}),
+      string("SI") |> replace({:measurement_system, :metric}),
+      string("imperial") |> replace({:measurement_system, :uk}),
+      string("us") |> replace({:measurement_system, :us}),
+      string("US") |> replace({:measurement_system, :us}),
+      string("uk") |> replace({:measurement_system, :uk}),
+      string("UK") |> replace({:measurement_system, :uk})
+    ])
+    |> lookahead_not(ascii_char([?a..?z, ?A..?Z, ?0..?9, ?_, ?-]))
+
   # Mixed-unit target requires at least two units separated by ";"
   # e.g. "h;min;s" — a single unit target falls through to `computation`.
   mixed_unit_target =
@@ -285,6 +301,7 @@ defmodule Units.Parser do
       conversion_op
       |> concat(
         choice([
+          system_target,
           mixed_unit_target,
           computation
         ])

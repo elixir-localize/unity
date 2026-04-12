@@ -151,6 +151,47 @@ defmodule Units.IntegrationTest do
     end
   end
 
+  describe "measurement system conversion" do
+    test "100 meter to us" do
+      {:ok, result, _env} = Units.eval("100 meter to us")
+      assert result.name == "mile"
+      {:ok, formatted} = Units.format(result)
+      assert formatted =~ "mile"
+    end
+
+    test "100 celsius to metric stays celsius" do
+      {:ok, result, _env} = Units.eval("100 celsius to metric")
+      assert result.name == "celsius"
+    end
+
+    test "preferred with German locale selects metric" do
+      Localize.put_locale(:de)
+      {:ok, result, _env} = Units.eval("100 fahrenheit to preferred")
+      assert result.name == "celsius"
+      Localize.put_locale(:en)
+    end
+
+    test "preferred with English locale selects US" do
+      Localize.put_locale(:en)
+      {:ok, result, _env} = Units.eval("100 meter to preferred")
+      assert result.name in ["foot", "mile", "yard"]
+    end
+
+    test "imperial alias works same as uk" do
+      {:ok, result_imp, _} = Units.eval("100 meter to imperial")
+      {:ok, result_uk, _} = Units.eval("100 meter to uk")
+      assert result_imp.name == result_uk.name
+      assert_in_delta result_imp.value, result_uk.value, 0.001
+    end
+
+    test "SI alias works same as metric" do
+      {:ok, result_si, _} = Units.eval("100 meter to SI")
+      {:ok, result_metric, _} = Units.eval("100 meter to metric")
+      assert result_si.name == result_metric.name
+      assert_in_delta result_si.value, result_metric.value, 0.001
+    end
+  end
+
   describe "mixed-unit display" do
     test "3.756 hours to h;min;s" do
       {:ok, result, _env} = Units.eval("3.756 hours to h;min;s")

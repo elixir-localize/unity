@@ -99,6 +99,21 @@ defmodule Units.Interpreter do
 
   # ── Conversion ──
 
+  def eval({:convert, expr, {:preferred_system}}, environment) do
+    with {:ok, value, environment} <- eval(expr, environment) do
+      locale = Localize.get_locale()
+      {:ok, territory} = Localize.Territory.territory_from_locale(locale)
+      system = Localize.Unit.measurement_system_for_territory(territory)
+      convert_to_system(value, system, environment)
+    end
+  end
+
+  def eval({:convert, expr, {:measurement_system, system}}, environment) do
+    with {:ok, value, environment} <- eval(expr, environment) do
+      convert_to_system(value, system, environment)
+    end
+  end
+
   def eval({:convert, expr, {:mixed_units, unit_asts}}, environment) do
     with {:ok, value, environment} <- eval(expr, environment) do
       decompose_value(value, unit_asts, environment)
@@ -282,6 +297,22 @@ defmodule Units.Interpreter do
   defp convert_value(number, target_name) when is_number(number) do
     {:error,
      "cannot convert bare number #{number} to #{inspect(target_name)} — specify a source unit"}
+  end
+
+  # ── Measurement system conversion ──
+
+  defp convert_to_system(%Localize.Unit{} = unit, system, environment) do
+    case Localize.Unit.convert_measurement_system(unit, system) do
+      {:ok, result} ->
+        {:ok, result, environment}
+
+      {:error, reason} ->
+        {:error, format_math_error("convert to measurement system", reason)}
+    end
+  end
+
+  defp convert_to_system(_value, _system, _environment) do
+    {:error, "measurement system conversion requires a unit value"}
   end
 
   # ── Mixed-unit decomposition ──

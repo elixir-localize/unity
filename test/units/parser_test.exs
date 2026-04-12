@@ -268,6 +268,53 @@ defmodule Units.ParserTest do
     end
   end
 
+  describe "measurement system target" do
+    test "preferred keyword" do
+      assert {:ok, {:convert, {:quantity, 3, {:unit_name, "meters"}}, {:preferred_system}}} =
+               Parser.parse("3 meters to preferred")
+    end
+
+    test "metric keyword" do
+      assert {:ok, {:convert, _, {:measurement_system, :metric}}} =
+               Parser.parse("3 meters to metric")
+    end
+
+    test "SI keyword" do
+      assert {:ok, {:convert, _, {:measurement_system, :metric}}} =
+               Parser.parse("3 meters to SI")
+    end
+
+    test "us keyword" do
+      assert {:ok, {:convert, _, {:measurement_system, :us}}} =
+               Parser.parse("3 meters to us")
+    end
+
+    test "US keyword" do
+      assert {:ok, {:convert, _, {:measurement_system, :us}}} =
+               Parser.parse("3 meters to US")
+    end
+
+    test "uk keyword" do
+      assert {:ok, {:convert, _, {:measurement_system, :uk}}} =
+               Parser.parse("3 meters to uk")
+    end
+
+    test "UK keyword" do
+      assert {:ok, {:convert, _, {:measurement_system, :uk}}} =
+               Parser.parse("3 meters to UK")
+    end
+
+    test "imperial keyword" do
+      assert {:ok, {:convert, _, {:measurement_system, :uk}}} =
+               Parser.parse("3 meters to imperial")
+    end
+
+    test "system keyword does not match prefix of longer word" do
+      assert {:ok, {:convert, _, {:unit_name, "usb"}}} =
+               Parser.parse("3 meters to usb")
+    end
+  end
+
   describe "mixed-unit target" do
     test "two units" do
       assert {:ok, {:convert, {:quantity, 1.5, {:unit_name, "hours"}}, {:mixed_units, targets}}} =

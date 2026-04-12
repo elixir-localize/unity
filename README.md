@@ -10,6 +10,7 @@ An Elixir unit conversion calculator inspired by the Unix `units` utility. Uses 
 * Juxtaposition multiplication: `kg m / s^2` = `(kg * m) / s^2`, matching GNU `units` precedence.
 * Rational numbers: `1|3 cup to mL`.
 * Concatenated exponents: `cm3` = `cm^3`.
+* Measurement system conversion: `100 meter to us`, `100 fahrenheit to metric`, `to preferred`, `to imperial`, `to SI`.
 * Variables: `let distance = 42.195 km`, then reuse `distance / time`.
 * Mixed-unit display: `3.756 hours to h;min;s` → `3 hours, 45 minutes, 21.6 seconds`.
 * Locale-aware output: number and unit formatting via `Localize`.
@@ -54,6 +55,24 @@ iex> {:ok, _, env} = Units.eval("let time = 2 hours", env)
 iex> {:ok, result, _} = Units.eval("distance / time", env)
 iex> result.name
 "kilometer-per-hour"
+```
+
+### Measurement system conversion
+
+```elixir
+iex> Units.format!(Units.eval!("100 meter to us"))
+"0.062137 miles"
+
+iex> Units.format!(Units.eval!("100 fahrenheit to metric"))
+"37.777778 degrees Celsius"
+
+iex> Units.format!(Units.eval!("100 meter to imperial"))
+"0.062137 miles"
+
+# "preferred" uses the current locale's measurement system
+iex> Localize.put_locale(:de)
+iex> Units.format!(Units.eval!("100 fahrenheit to preferred"))
+"37.777778 Grad Celsius"
 ```
 
 ### Locale-aware output
@@ -176,6 +195,8 @@ echo "3 meters to feet" | ./units
 | Rationals | `1\|3 cup` | Rational numbers (GNU `units` style) |
 | Variables | `let x = 42 km` | Variable binding |
 | Previous result | `_`, `_ to cm` | Refer to last REPL result |
+| System target | `to metric`, `to us`, `to imperial`, `to SI` | Convert to measurement system |
+| Preferred | `to preferred` | Convert to locale's preferred system |
 | Mixed-unit | `3.756 hours to h;min;s` | Decompose into multiple units |
 
 ## Operator precedence (highest to lowest)
