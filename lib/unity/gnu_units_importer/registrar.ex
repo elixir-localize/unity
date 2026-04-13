@@ -24,6 +24,22 @@ defmodule Unity.GnuUnitsImporter.Registrar do
 
   @cldr_power_prefix %{2 => "square-", 3 => "cubic-"}
 
+  # CLDR compound unit component ordering, derived from the base_unit_order
+  # in CLDR supplemental data. Components in compound unit strings must
+  # appear in this order for category lookups to match.
+  @cldr_component_order %{
+    "candela" => 0,
+    "kilogram" => 1,
+    "meter" => 2,
+    "second" => 3,
+    "ampere" => 4,
+    "kelvin" => 5,
+    "mole" => 6,
+    "steradian" => 7,
+    "radian" => 8,
+    "bit" => 9
+  }
+
   @base_unit_to_quantity Localize.Unit.Data.base_unit_to_quantity()
   @existing_conversions Localize.Unit.Data.conversions()
   @valid_name_pattern ~r/^[a-z][a-z0-9_-]*$/
@@ -142,12 +158,12 @@ defmodule Unity.GnuUnitsImporter.Registrar do
 
     num_parts =
       numerator
-      |> Enum.sort_by(fn {name, _} -> name end)
+      |> Enum.sort_by(fn {name, _} -> cldr_sort_position(name) end)
       |> Enum.map(fn {name, power} -> format_cldr_component(name, power) end)
 
     den_parts =
       denominator
-      |> Enum.sort_by(fn {name, _} -> name end)
+      |> Enum.sort_by(fn {name, _} -> cldr_sort_position(name) end)
       |> Enum.map(fn {name, power} -> format_cldr_component(name, abs(power)) end)
 
     case {num_parts, den_parts} do
@@ -165,6 +181,11 @@ defmodule Unity.GnuUnitsImporter.Registrar do
     end
   end
 
+  defp cldr_sort_position(gnu_name) do
+    cldr_name = Map.get(@primitive_to_cldr, gnu_name, gnu_name)
+    Map.get(@cldr_component_order, cldr_name, 99)
+  end
+
   defp format_cldr_component(gnu_name, power) do
     cldr_name = Map.get(@primitive_to_cldr, gnu_name, gnu_name)
     power_prefix = Map.get(@cldr_power_prefix, power, "")
@@ -176,8 +197,6 @@ defmodule Unity.GnuUnitsImporter.Registrar do
     end
   end
 
-  @valid_categories MapSet.new(Localize.Unit.Data.categories())
-
   defp lookup_category(base_unit) do
     category =
       Map.get(@base_unit_to_quantity, base_unit) ||
@@ -186,15 +205,10 @@ defmodule Unity.GnuUnitsImporter.Registrar do
           _ -> nil
         end
 
-    cond do
-      is_nil(category) ->
-        {:error, "unknown category for base unit: #{base_unit}"}
-
-      MapSet.member?(@valid_categories, category) ->
-        {:ok, category}
-
-      true ->
-        {:error, "unsupported category: #{category}"}
+    if is_nil(category) do
+      {:error, "unknown category for base unit: #{base_unit}"}
+    else
+      {:ok, category}
     end
   end
 

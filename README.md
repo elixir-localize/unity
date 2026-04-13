@@ -245,6 +245,26 @@ Its possible to directly import many - but not all - of the unit definitions fro
 
 See [Unity.GnuUnitsImporter](https://hexdocs.pm/unity/Unity.GnuUnitsImporter.html) for more information.
 
+## A fun example from history
+
+See https://www.ibiblio.org/harris/500milemail.html.  Here's our implementation:
+
+```elixir
+$ iex -S mix
+iex(1)> Unity.GnuUnitsImporter.import()
+iex(2)> Unity.Repl.start()
+Unity v0.2.0 — type "help" for commands, "quit" to exit
+
+> 3 millilightsecond to mile
+558.847191 miles
+````
+
+## References
+
+* [units](https://www.gnu.org/software/units/), the inspiration for `Unity`.
+
+* [Numbat](https://github.com/sharkdp/numbat) s a statically typed programming language for scientific computations with first class support for physical dimensions and units.
+
 ## License
 
-Apache-2.0
+Apache 2.0 (See LICENSE.md)
