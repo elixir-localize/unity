@@ -84,7 +84,7 @@ jobs:
 
       - name: Run tests
         env:
-          ERL_FLAGS: "+MImmbcs 4096"
+          ERL_FLAGS: "+MImmbcs 32768 +MIsmbcs 8192 +MIlmbcs 65536"
         run: mix test
 
       - name: Restore PLT cache
