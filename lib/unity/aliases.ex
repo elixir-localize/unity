@@ -1,4 +1,4 @@
-defmodule Units.Aliases do
+defmodule Unity.Aliases do
   @moduledoc """
   Maps user-friendly unit abbreviations and common names to CLDR unit identifiers
   recognized by `Localize.Unit`.
@@ -256,13 +256,13 @@ defmodule Units.Aliases do
 
   ### Examples
 
-      iex> Units.Aliases.resolve("km")
+      iex> Unity.Aliases.resolve("km")
       {:ok, "kilometer"}
 
-      iex> Units.Aliases.resolve("meter")
+      iex> Unity.Aliases.resolve("meter")
       {:ok, "meter"}
 
-      iex> Units.Aliases.resolve("frobnicator")
+      iex> Unity.Aliases.resolve("frobnicator")
       {:error, :unknown_unit}
 
   """

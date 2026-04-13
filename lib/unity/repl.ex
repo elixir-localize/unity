@@ -1,4 +1,4 @@
-defmodule Units.Repl do
+defmodule Unity.Repl do
   @moduledoc """
   Interactive REPL (Read-Eval-Print Loop) for the units calculator.
 
@@ -37,7 +37,7 @@ defmodule Units.Repl do
     load_history(history_path)
 
     unless quiet do
-      IO.puts("Units v#{@version} — type \"help\" for commands, \"quit\" to exit\n")
+      IO.puts("Unity v#{@version} — type \"help\" for commands, \"quit\" to exit\n")
     end
 
     loop(%{}, history_path)
@@ -110,7 +110,7 @@ defmodule Units.Repl do
         IO.puts("Locale set to :#{locale_id}")
 
       {:error, exception} ->
-        IO.puts(Units.Error.format(Exception.message(exception)))
+        IO.puts(Unity.Error.format(Exception.message(exception)))
     end
 
     {:continue, environment}
@@ -120,14 +120,14 @@ defmodule Units.Repl do
   # eval chain, but it is a valid runtime return from mixed-unit conversions.
   @dialyzer {:nowarn_function, handle_input: 2}
   defp handle_input(input, environment) do
-    case Units.eval(input, environment) do
+    case Unity.eval(input, environment) do
       {:ok, result, environment} ->
-        case Units.Formatter.format(result) do
+        case Unity.Formatter.format(result) do
           {:ok, formatted} ->
             IO.puts(formatted)
 
           {:error, reason} ->
-            IO.puts(Units.Error.format(reason))
+            IO.puts(Unity.Error.format(reason))
         end
 
         # Store the result as "_" so it can be referenced in subsequent expressions.
@@ -142,7 +142,7 @@ defmodule Units.Repl do
         {:continue, environment}
 
       {:error, message} ->
-        IO.puts(Units.Error.format(message))
+        IO.puts(Unity.Error.format(message))
         {:continue, environment}
     end
   end
@@ -154,19 +154,19 @@ defmodule Units.Repl do
 
     # Search through aliases
     alias_matches =
-      Units.Aliases.known_aliases()
+      Unity.Aliases.known_aliases()
       |> Enum.filter(&String.contains?(String.downcase(&1), query_down))
 
     # Search through CLDR unit names
     cldr_matches =
-      Units.Aliases.all_known_names()
+      Unity.Aliases.all_known_names()
       |> Enum.filter(&String.contains?(&1, query_down))
 
     # Combine, resolve to CLDR names, deduplicate
     all_matches =
       (alias_matches ++ cldr_matches)
       |> Enum.map(fn name ->
-        case Units.Aliases.resolve(name) do
+        case Unity.Aliases.resolve(name) do
           {:ok, cldr} -> {name, cldr}
           _ -> {name, name}
         end
@@ -279,7 +279,7 @@ defmodule Units.Repl do
 
     case Map.get(by_category, category) do
       nil ->
-        IO.puts(Units.Error.format("unknown category: #{inspect(category)}"))
+        IO.puts(Unity.Error.format("unknown category: #{inspect(category)}"))
 
       units ->
         IO.puts("#{category}: #{Enum.sort(units) |> Enum.join(", ")}")
@@ -287,7 +287,7 @@ defmodule Units.Repl do
   end
 
   defp list_conformable(name) do
-    case Units.Aliases.resolve(name) do
+    case Unity.Aliases.resolve(name) do
       {:ok, cldr_name} ->
         case Localize.Unit.unit_category(cldr_name) do
           {:ok, category} ->
@@ -296,11 +296,11 @@ defmodule Units.Repl do
             IO.puts(Enum.sort(units) |> Enum.join(", "))
 
           {:error, exception} ->
-            IO.puts(Units.Error.format(Exception.message(exception)))
+            IO.puts(Unity.Error.format(Exception.message(exception)))
         end
 
       {:error, :unknown_unit} ->
-        suggestions = Units.Aliases.suggest(name)
+        suggestions = Unity.Aliases.suggest(name)
 
         message =
           case suggestions do
@@ -311,12 +311,12 @@ defmodule Units.Repl do
               "unknown unit: #{inspect(name)}\n  Did you mean: #{Enum.map_join(suggestions, ", ", &elem(&1, 0))}?"
           end
 
-        IO.puts(Units.Error.format(message))
+        IO.puts(Unity.Error.format(message))
     end
   end
 
   defp show_unit_info(name) do
-    case Units.Aliases.resolve(name) do
+    case Unity.Aliases.resolve(name) do
       {:ok, cldr_name} ->
         case Localize.Unit.unit_category(cldr_name) do
           {:ok, category} ->
@@ -324,9 +324,9 @@ defmodule Units.Repl do
 
             # Show aliases that map to this unit
             aliases =
-              Units.Aliases.known_aliases()
+              Unity.Aliases.known_aliases()
               |> Enum.filter(fn alias_name ->
-                case Units.Aliases.resolve(alias_name) do
+                case Unity.Aliases.resolve(alias_name) do
                   {:ok, ^cldr_name} -> true
                   _ -> false
                 end
@@ -348,11 +348,11 @@ defmodule Units.Repl do
             end
 
           {:error, exception} ->
-            IO.puts(Units.Error.format(Exception.message(exception)))
+            IO.puts(Unity.Error.format(Exception.message(exception)))
         end
 
       {:error, :unknown_unit} ->
-        IO.puts(Units.Error.format("unknown unit: #{inspect(name)}"))
+        IO.puts(Unity.Error.format("unknown unit: #{inspect(name)}"))
     end
   end
 end

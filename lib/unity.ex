@@ -1,4 +1,4 @@
-defmodule Units do
+defmodule Unity do
   @moduledoc """
   An Elixir unit conversion calculator inspired by the Unix `units` utility.
 
@@ -9,11 +9,11 @@ defmodule Units do
 
   ## Quick start
 
-      iex> result = Units.eval!("3 meters to feet")
+      iex> result = Unity.eval!("3 meters to feet")
       iex> result.name
       "foot"
 
-      iex> Units.eval!("60 mph to km/h") |> Units.format!()
+      iex> Unity.eval!("60 mph to km/h") |> Unity.format!()
       "96.56064 kilometers per hour"
 
   ## Expression syntax
@@ -33,7 +33,7 @@ defmodule Units do
   """
 
   @type result :: Localize.Unit.t() | number() | {:decomposed, [Localize.Unit.t()]}
-  @type env :: Units.Interpreter.env()
+  @type env :: Unity.Interpreter.env()
 
   @doc """
   Parses and evaluates a unit expression string.
@@ -52,16 +52,16 @@ defmodule Units do
 
   ### Examples
 
-      iex> {:ok, result, _env} = Units.eval("3 meters to feet")
+      iex> {:ok, result, _env} = Unity.eval("3 meters to feet")
       iex> Float.round(result.value, 2)
       9.84
 
   """
   @spec eval(String.t(), env()) :: {:ok, result(), env()} | {:error, String.t()}
   def eval(input, environment \\ %{}) do
-    case Units.Parser.parse(input) do
+    case Unity.Parser.parse(input) do
       {:ok, ast} ->
-        Units.Interpreter.eval(ast, environment)
+        Unity.Interpreter.eval(ast, environment)
 
       {:error, message} ->
         {:error, message}
@@ -83,7 +83,7 @@ defmodule Units do
 
   ### Examples
 
-      iex> result = Units.eval!("3 meters to feet")
+      iex> result = Unity.eval!("3 meters to feet")
       iex> result.name
       "foot"
 
@@ -99,13 +99,13 @@ defmodule Units do
   @doc """
   Formats a result value for display.
 
-  Delegates to `Units.Formatter.format/2`.
+  Delegates to `Unity.Formatter.format/2`.
 
   ### Arguments
 
   * `result` - a `Localize.Unit.t()` or a number.
 
-  * `options` - formatting options. See `Units.Formatter.format/2`.
+  * `options` - formatting options. See `Unity.Formatter.format/2`.
 
   ### Returns
 
@@ -116,12 +116,12 @@ defmodule Units do
   ### Examples
 
       iex> {:ok, unit} = Localize.Unit.new(9.84252, "foot")
-      iex> Units.format(unit)
+      iex> Unity.format(unit)
       {:ok, "9.84252 feet"}
 
   """
   @spec format(result(), keyword()) :: {:ok, String.t()} | {:error, String.t()}
-  defdelegate format(result, options \\ []), to: Units.Formatter
+  defdelegate format(result, options \\ []), to: Unity.Formatter
 
   @doc """
   Formats a result value for display, raising on failure.
@@ -130,7 +130,7 @@ defmodule Units do
 
   * `result` - a `Localize.Unit.t()` or a number.
 
-  * `options` - formatting options. See `Units.Formatter.format/2`.
+  * `options` - formatting options. See `Unity.Formatter.format/2`.
 
   ### Returns
 
@@ -139,10 +139,10 @@ defmodule Units do
   ### Examples
 
       iex> {:ok, unit} = Localize.Unit.new(9.84252, "foot")
-      iex> Units.format!(unit)
+      iex> Unity.format!(unit)
       "9.84252 feet"
 
   """
   @spec format!(result(), keyword()) :: String.t()
-  defdelegate format!(result, options \\ []), to: Units.Formatter
+  defdelegate format!(result, options \\ []), to: Unity.Formatter
 end

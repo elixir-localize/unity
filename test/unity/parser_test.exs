@@ -1,7 +1,7 @@
-defmodule Units.ParserTest do
+defmodule Unity.ParserTest do
   use ExUnit.Case, async: true
 
-  alias Units.Parser
+  alias Unity.Parser
 
   describe "number literals" do
     test "integer" do

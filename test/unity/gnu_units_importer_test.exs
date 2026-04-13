@@ -1,8 +1,8 @@
-defmodule Units.GnuUnitsImporterTest do
+defmodule Unity.GnuUnitsImporterTest do
   use ExUnit.Case, async: false
 
-  alias Units.GnuUnitsImporter
-  alias Units.GnuUnitsImporter.{Parser, Resolver, Registrar}
+  alias Unity.GnuUnitsImporter
+  alias Unity.GnuUnitsImporter.{Parser, Resolver, Registrar}
   alias Localize.Unit.CustomRegistry
 
   setup do
@@ -223,10 +223,10 @@ defmodule Units.GnuUnitsImporterTest do
           assert stats.skipped > 0
 
           # Verify some imported units work
-          result = Units.eval!("3 furlong to meter")
+          result = Unity.eval!("3 furlong to meter")
           assert_in_delta result.value, 603.504, 0.01
 
-          result = Units.eval!("1 slug to kg")
+          result = Unity.eval!("1 slug to kg")
           assert_in_delta result.value, 14.5939, 0.01
 
         {:error, reason} ->

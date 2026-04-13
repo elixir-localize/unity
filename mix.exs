@@ -1,4 +1,4 @@
-defmodule Units.MixProject do
+defmodule Unity.MixProject do
   use Mix.Project
 
   @version "0.1.0"
@@ -6,10 +6,10 @@ defmodule Units.MixProject do
 
   def project do
     [
-      app: :eunits,
+      app: :unity,
       version: @version,
       elixir: "~> 1.17",
-      name: "Elixir Units",
+      name: "Unity",
       source_url: @source_url,
       docs: docs(),
       description: description(),
@@ -27,7 +27,7 @@ defmodule Units.MixProject do
   end
 
   defp escript do
-    [main_module: Units.CLI]
+    [main_module: Unity.CLI]
   end
 
   defp description do

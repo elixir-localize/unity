@@ -1,4 +1,4 @@
-defmodule Units.GnuUnitsImporter.Registrar do
+defmodule Unity.GnuUnitsImporter.Registrar do
   @moduledoc """
   Pass 3: converts resolved GNU unit definitions into Localize custom
   unit registrations.

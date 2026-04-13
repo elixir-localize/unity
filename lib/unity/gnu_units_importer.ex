@@ -1,4 +1,4 @@
-defmodule Units.GnuUnitsImporter do
+defmodule Unity.GnuUnitsImporter do
   @moduledoc """
   Imports unit definitions from a GNU `units` definition file into
   the Localize custom unit registry.
@@ -10,22 +10,22 @@ defmodule Units.GnuUnitsImporter do
   ## Usage
 
       # Import from the system default location
-      {:ok, stats} = Units.GnuUnitsImporter.import()
+      {:ok, stats} = Unity.GnuUnitsImporter.import()
 
       # Import from a specific file
-      {:ok, stats} = Units.GnuUnitsImporter.import("/path/to/definitions.units")
+      {:ok, stats} = Unity.GnuUnitsImporter.import("/path/to/definitions.units")
 
       # Export to a .exs file for use with Localize.Unit.load_custom_units/1
-      {:ok, count} = Units.GnuUnitsImporter.export("priv/gnu_units.exs")
+      {:ok, count} = Unity.GnuUnitsImporter.export("priv/gnu_units.exs")
 
       # Parse without registering (for inspection)
-      {:ok, parsed} = Units.GnuUnitsImporter.parse("/path/to/definitions.units")
+      {:ok, parsed} = Unity.GnuUnitsImporter.parse("/path/to/definitions.units")
 
   """
 
-  alias Units.GnuUnitsImporter.{Parser, Resolver, Registrar}
+  alias Unity.GnuUnitsImporter.{Parser, Resolver, Registrar}
 
-  @bundled_path Application.app_dir(:eunits, "priv/definitions.units")
+  @bundled_path Application.app_dir(:unity, "priv/definitions.units")
 
   @system_paths [
     "/opt/homebrew/share/units/definitions.units",

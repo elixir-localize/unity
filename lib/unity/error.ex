@@ -1,4 +1,4 @@
-defmodule Units.Error do
+defmodule Unity.Error do
   @moduledoc """
   User-friendly error formatting for parse errors, evaluation errors,
   and unknown unit suggestions.
@@ -20,7 +20,7 @@ defmodule Units.Error do
 
   ### Examples
 
-      iex> Units.Error.format({:error, "unknown unit: \\"frobnicator\\""})
+      iex> Unity.Error.format({:error, "unknown unit: \\"frobnicator\\""})
       "** Unknown unit: \\"frobnicator\\""
 
   """

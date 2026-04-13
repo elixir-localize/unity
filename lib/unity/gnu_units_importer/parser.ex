@@ -1,4 +1,4 @@
-defmodule Units.GnuUnitsImporter.Parser do
+defmodule Unity.GnuUnitsImporter.Parser do
   @moduledoc """
   Pass 1: parses a GNU `units` definition file into raw data structures.
 

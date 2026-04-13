@@ -1,4 +1,4 @@
-defmodule Units.CLI do
+defmodule Unity.CLI do
   @moduledoc """
   Command-line entry point for the units calculator.
 
@@ -8,18 +8,18 @@ defmodule Units.CLI do
   ## Usage
 
       # Interactive mode
-      units
+      unity
 
       # Single expression
-      units "3 meters to feet"
+      unity "3 meters to feet"
 
       # Two-argument conversion (GNU units style)
-      units "3 meters" "feet"
+      unity "3 meters" "feet"
 
       # With options
-      units -v "1 gallon" "liters"
-      units -t "100 celsius" "fahrenheit"
-      units --locale de "1234.5 meter to kilometer"
+      unity -v "1 gallon" "liters"
+      unity -t "100 celsius" "fahrenheit"
+      unity --locale de "1234.5 meter to kilometer"
 
   """
 
@@ -67,7 +67,7 @@ defmodule Units.CLI do
 
     cond do
       options[:version] ->
-        IO.puts("Units v#{@version}")
+        IO.puts("Unity v#{@version}")
 
       options[:help] ->
         print_usage()
@@ -86,7 +86,7 @@ defmodule Units.CLI do
 
       true ->
         repl_options = build_repl_options(options)
-        Units.Repl.start(repl_options)
+        Unity.Repl.start(repl_options)
     end
   end
 
@@ -104,15 +104,15 @@ defmodule Units.CLI do
       if expression != "" do
         expr_options = Keyword.put(format_options, :input, expression)
 
-        case Units.eval(expression) do
+        case Unity.eval(expression) do
           {:ok, result, _env} ->
-            case Units.Formatter.format(result, expr_options) do
+            case Unity.Formatter.format(result, expr_options) do
               {:ok, formatted} -> IO.puts(formatted)
-              {:error, reason} -> IO.puts(:stderr, Units.Error.format(reason))
+              {:error, reason} -> IO.puts(:stderr, Unity.Error.format(reason))
             end
 
           {:error, message} ->
-            IO.puts(:stderr, Units.Error.format(message))
+            IO.puts(:stderr, Unity.Error.format(message))
         end
       end
     end)
@@ -149,9 +149,9 @@ defmodule Units.CLI do
 
     format_options = build_format_options(options, expression)
 
-    case Units.eval(expression) do
+    case Unity.eval(expression) do
       {:ok, result, _env} ->
-        case Units.Formatter.format(result, format_options) do
+        case Unity.Formatter.format(result, format_options) do
           {:ok, formatted} -> IO.puts(formatted)
           {:error, reason} -> error_exit(reason)
         end
@@ -180,7 +180,7 @@ defmodule Units.CLI do
   end
 
   defp show_conformable(unit_name) do
-    case Units.Aliases.resolve(unit_name) do
+    case Unity.Aliases.resolve(unit_name) do
       {:ok, cldr_name} ->
         case Localize.Unit.unit_category(cldr_name) do
           {:ok, category} ->
@@ -220,7 +220,7 @@ defmodule Units.CLI do
           IO.puts(:stderr, "Loaded #{count} custom unit(s) from #{path}")
 
         {:error, reason} ->
-          IO.puts(:stderr, Units.Error.format("cannot load #{path}: #{reason}"))
+          IO.puts(:stderr, Unity.Error.format("cannot load #{path}: #{reason}"))
       end
     end)
   end
@@ -245,13 +245,13 @@ defmodule Units.CLI do
 
   @spec error_exit(String.t()) :: no_return()
   defp error_exit(message) do
-    IO.puts(:stderr, Units.Error.format(message))
+    IO.puts(:stderr, Unity.Error.format(message))
     System.halt(1)
   end
 
   defp print_usage do
     IO.puts("""
-    Usage: units [options] [expression] [target]
+    Usage: unity [options] [expression] [target]
 
     Options:
       -v, --verbose          Show "from = to" format
@@ -270,13 +270,13 @@ defmodule Units.CLI do
       -h, --help             Print this help
 
     Examples:
-      units                          Start interactive mode
-      units "3 meters to feet"       Single conversion
-      units "3 meters" "feet"        Two-argument conversion
-      units -v "1 gallon" "liters"   Verbose output
-      units -t "100 celsius" "fahrenheit"   Numeric only
-      units -d 10 "3 meters" "feet"  High precision
-      units -e "1 light-year" "km"   Scientific notation
+      unity                          Start interactive mode
+      unity "3 meters to feet"       Single conversion
+      unity "3 meters" "feet"        Two-argument conversion
+      unity -v "1 gallon" "liters"   Verbose output
+      unity -t "100 celsius" "fahrenheit"   Numeric only
+      unity -d 10 "3 meters" "feet"  High precision
+      unity -e "1 light-year" "km"   Scientific notation
     """)
   end
 end

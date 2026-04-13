@@ -1,4 +1,4 @@
-defmodule Units.Parser do
+defmodule Unity.Parser do
   @moduledoc """
   NimbleParsec-based expression parser for unit expressions.
 
@@ -9,7 +9,7 @@ defmodule Units.Parser do
 
   * Numeric literals (integers, floats, rationals with `|`).
 
-  * Unit names (resolved via `Units.Aliases`).
+  * Unit names (resolved via `Unity.Aliases`).
 
   * Arithmetic operators: `+`, `-`, `*`, `/`, `^`.
 
@@ -353,10 +353,10 @@ defmodule Units.Parser do
 
   ### Examples
 
-      iex> Units.Parser.parse("3 meters")
+      iex> Unity.Parser.parse("3 meters")
       {:ok, {:quantity, 3, {:unit_name, "meters"}}}
 
-      iex> Units.Parser.parse("3 meters to feet")
+      iex> Unity.Parser.parse("3 meters to feet")
       {:ok, {:convert, {:quantity, 3, {:unit_name, "meters"}}, {:unit_name, "feet"}}}
 
   """
@@ -387,7 +387,7 @@ defmodule Units.Parser do
 
   ### Examples
 
-      iex> Units.Parser.parse!("3 meters")
+      iex> Unity.Parser.parse!("3 meters")
       {:quantity, 3, {:unit_name, "meters"}}
 
   """
@@ -456,7 +456,7 @@ defmodule Units.Parser do
     case Regex.run(~r/^(.+?)(\d)$/, name) do
       [_, base, exp] when byte_size(base) > 0 ->
         # Only treat trailing digit as exponent if the base resolves to a known unit
-        case Units.Aliases.resolve(base) do
+        case Unity.Aliases.resolve(base) do
           {:ok, _} ->
             {:power, {:unit_name, base}, {:number, String.to_integer(exp)}}
 

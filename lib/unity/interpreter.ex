@@ -1,6 +1,6 @@
-defmodule Units.Interpreter do
+defmodule Unity.Interpreter do
   @moduledoc """
-  Evaluates ASTs produced by `Units.Parser` by building `Localize.Unit`
+  Evaluates ASTs produced by `Unity.Parser` by building `Localize.Unit`
   structs and applying operations via `Localize.Unit.Math`.
 
   The interpreter maintains an environment map for variable bindings
@@ -16,7 +16,7 @@ defmodule Units.Interpreter do
 
   ### Arguments
 
-  * `ast` - the AST node from `Units.Parser`.
+  * `ast` - the AST node from `Unity.Parser`.
 
   * `environment` - a map of variable bindings. Defaults to `%{}`.
 
@@ -30,8 +30,8 @@ defmodule Units.Interpreter do
 
   ### Examples
 
-      iex> {:ok, ast} = Units.Parser.parse("3 meters to feet")
-      iex> {:ok, result, _env} = Units.Interpreter.eval(ast)
+      iex> {:ok, ast} = Unity.Parser.parse("3 meters to feet")
+      iex> {:ok, result, _env} = Unity.Interpreter.eval(ast)
       iex> result.name
       "foot"
 
@@ -211,25 +211,25 @@ defmodule Units.Interpreter do
   # ── Unit name resolution ──
 
   defp resolve_unit_ast({:unit_name, name}) do
-    case Units.Aliases.resolve(name) do
+    case Unity.Aliases.resolve(name) do
       {:ok, cldr_name} ->
         {:ok, cldr_name}
 
       {:error, :unknown_unit} ->
-        suggestions = Units.Aliases.suggest(name)
+        suggestions = Unity.Aliases.suggest(name)
         suggestion_text = format_suggestions(suggestions)
         {:error, "unknown unit: #{inspect(name)}#{suggestion_text}"}
     end
   end
 
   defp resolve_unit_ast({:power, {:unit_name, name}, {:number, exponent}}) do
-    case Units.Aliases.resolve(name) do
+    case Unity.Aliases.resolve(name) do
       {:ok, cldr_name} ->
         power_name = power_prefix(exponent) <> cldr_name
         {:ok, power_name}
 
       {:error, :unknown_unit} ->
-        suggestions = Units.Aliases.suggest(name)
+        suggestions = Unity.Aliases.suggest(name)
         suggestion_text = format_suggestions(suggestions)
         {:error, "unknown unit: #{inspect(name)}#{suggestion_text}"}
     end
@@ -258,7 +258,7 @@ defmodule Units.Interpreter do
   defp power_prefix(n), do: "pow#{n}-"
 
   defp resolve_and_create(value, name) do
-    case Units.Aliases.resolve(name) do
+    case Unity.Aliases.resolve(name) do
       {:ok, cldr_name} ->
         case Localize.Unit.new(value, cldr_name) do
           {:ok, unit} -> {:ok, unit}
@@ -266,7 +266,7 @@ defmodule Units.Interpreter do
         end
 
       {:error, :unknown_unit} ->
-        suggestions = Units.Aliases.suggest(name)
+        suggestions = Unity.Aliases.suggest(name)
         suggestion_text = format_suggestions(suggestions)
         {:error, "unknown unit: #{inspect(name)}#{suggestion_text}"}
     end

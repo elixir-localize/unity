@@ -1,7 +1,7 @@
-defmodule Units.InterpreterTest do
+defmodule Unity.InterpreterTest do
   use ExUnit.Case, async: true
 
-  alias Units.{Parser, Interpreter}
+  alias Unity.{Parser, Interpreter}
 
   defp eval!(input, environment \\ %{}) do
     {:ok, ast} = Parser.parse(input)
@@ -329,7 +329,7 @@ defmodule Units.InterpreterTest do
 
     test "formats mixed-unit result" do
       {result, _env} = eval!("3.756 hours to h;min;s")
-      assert {:ok, formatted} = Units.Formatter.format(result)
+      assert {:ok, formatted} = Unity.Formatter.format(result)
       assert formatted =~ "hour"
       assert formatted =~ "minute"
       assert formatted =~ "second"

@@ -1,15 +1,15 @@
 # Importing GNU `units` Definitions
 
-The `Units.GnuUnitsImporter` module parses the GNU `units` definition file and registers as many units as possible via `Localize.Unit.define_unit/2`. This guide describes what gets imported, what gets skipped, and how to use the importer.
+The `Unity.GnuUnitsImporter` module parses the GNU `units` definition file and registers as many units as possible via `Localize.Unit.define_unit/2`. This guide describes what gets imported, what gets skipped, and how to use the importer.
 
 ## Quick start
 
 ```elixir
 # Import directly (registers units in the current BEAM node)
-{:ok, stats} = Units.GnuUnitsImporter.import()
+{:ok, stats} = Unity.GnuUnitsImporter.import()
 
 # Or export to a .exs file for repeatable loading
-{:ok, count} = Units.GnuUnitsImporter.export("priv/gnu_units.exs")
+{:ok, count} = Unity.GnuUnitsImporter.export("priv/gnu_units.exs")
 
 # Load the exported file at application startup
 Localize.Unit.load_custom_units("priv/gnu_units.exs")

@@ -1,4 +1,4 @@
-defmodule Units.LocalizeUnitExerciseTest do
+defmodule Unity.LocalizeUnitExerciseTest do
   @moduledoc """
   Exercises Localize.Unit creation, conversion, math, and formatting
   for both standard CLDR units and custom units imported from the
@@ -19,8 +19,8 @@ defmodule Units.LocalizeUnitExerciseTest do
     CustomRegistry.clear()
 
     # Load GNU units from the bundled definitions file
-    path = Application.app_dir(:eunits, "priv/definitions.units")
-    {:ok, _stats} = Units.GnuUnitsImporter.import(path)
+    path = Application.app_dir(:unity, "priv/definitions.units")
+    {:ok, _stats} = Unity.GnuUnitsImporter.import(path)
 
     on_exit(fn -> CustomRegistry.clear() end)
     :ok
@@ -469,40 +469,40 @@ defmodule Units.LocalizeUnitExerciseTest do
   end
 
   # ══════════════════════════════════════════════════════════════════
-  # Part 4: Through the Units expression evaluator
+  # Part 4: Through the Unity expression evaluator
   # ══════════════════════════════════════════════════════════════════
 
-  describe "Units.eval with custom units" do
+  describe "Unity.eval with custom units" do
     test "simple conversion expression" do
-      {:ok, result, _env} = Units.eval("1 league to meter")
+      {:ok, result, _env} = Unity.eval("1 league to meter")
       assert_in_delta result.value, 4828.032, 0.01
     end
 
     test "arithmetic with custom units" do
-      {:ok, result, _env} = Units.eval("500 torr + 260 torr")
+      {:ok, result, _env} = Unity.eval("500 torr + 260 torr")
       assert result.name == "torr"
       assert_in_delta result.value, 760.0, 0.001
     end
 
     test "mixed CLDR and custom in arithmetic" do
-      {:ok, result, _env} = Units.eval("1 league + 1000 meter")
+      {:ok, result, _env} = Unity.eval("1 league + 1000 meter")
       assert result.name == "league"
     end
 
     test "custom unit in multiplication" do
-      {:ok, result, _env} = Units.eval("5 dyne * 3")
+      {:ok, result, _env} = Unity.eval("5 dyne * 3")
       assert result.name == "dyne"
       assert_in_delta result.value, 15.0, 0.001
     end
 
     test "custom unit conversion via eval" do
-      {:ok, result, _env} = Units.eval("100000 dyne to newton")
+      {:ok, result, _env} = Unity.eval("100000 dyne to newton")
       assert_in_delta result.value, 1.0, 0.001
     end
 
     test "format custom unit result" do
-      result = Units.eval!("5 league")
-      {:ok, formatted} = Units.format(result)
+      result = Unity.eval!("5 league")
+      {:ok, formatted} = Unity.format(result)
       assert formatted =~ "league"
     end
   end

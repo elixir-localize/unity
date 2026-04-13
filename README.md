@@ -1,4 +1,4 @@
-# Units
+# Unity
 
 An Elixir unit conversion calculator inspired by the Unix `units` utility. Uses [Localize](https://github.com/elixir-localize/localize) as the primary engine for unit creation, conversion, arithmetic, and localized output.
 
@@ -19,12 +19,12 @@ An Elixir unit conversion calculator inspired by the Unix `units` utility. Uses 
 
 ## Installation
 
-Add `units` to your list of dependencies in `mix.exs`:
+Add `unity` to your list of dependencies in `mix.exs`:
 
 ```elixir
 def deps do
   [
-    {:units, "~> 0.1.0"}
+    {:unity, "~> 0.1.0"}
   ]
 end
 ```
@@ -32,27 +32,27 @@ end
 ## Library usage
 
 ```elixir
-iex> {:ok, result, _env} = Units.eval("3 meters to feet")
+iex> {:ok, result, _env} = Unity.eval("3 meters to feet")
 iex> result.value
 9.84251968503937
 
-iex> Units.format!(Units.eval!("60 mph to km/h"))
+iex> Unity.format!(Unity.eval!("60 mph to km/h"))
 "96.56064 kilometers per hour"
 
-iex> Units.format!(Units.eval!("100 celsius to fahrenheit"))
+iex> Unity.format!(Unity.eval!("100 celsius to fahrenheit"))
 "212 degrees Fahrenheit"
 
-iex> {:ok, result, _env} = Units.eval("3.756 hours to h;min;s")
-iex> Units.format!(result)
+iex> {:ok, result, _env} = Unity.eval("3.756 hours to h;min;s")
+iex> Unity.format!(result)
 "3 hours, 45 minutes, 21.6 seconds"
 ```
 
 ### Variables
 
 ```elixir
-iex> {:ok, _, env} = Units.eval("let distance = 42.195 km")
-iex> {:ok, _, env} = Units.eval("let time = 2 hours", env)
-iex> {:ok, result, _} = Units.eval("distance / time", env)
+iex> {:ok, _, env} = Unity.eval("let distance = 42.195 km")
+iex> {:ok, _, env} = Unity.eval("let time = 2 hours", env)
+iex> {:ok, result, _} = Unity.eval("distance / time", env)
 iex> result.name
 "kilometer-per-hour"
 ```
@@ -60,36 +60,36 @@ iex> result.name
 ### Measurement system conversion
 
 ```elixir
-iex> Units.format!(Units.eval!("100 meter to us"))
+iex> Unity.format!(Unity.eval!("100 meter to us"))
 "0.062137 miles"
 
-iex> Units.format!(Units.eval!("100 fahrenheit to metric"))
+iex> Unity.format!(Unity.eval!("100 fahrenheit to metric"))
 "37.777778 degrees Celsius"
 
-iex> Units.format!(Units.eval!("100 meter to imperial"))
+iex> Unity.format!(Unity.eval!("100 meter to imperial"))
 "0.062137 miles"
 
 # "preferred" uses the current locale's measurement system
 iex> Localize.put_locale(:de)
-iex> Units.format!(Units.eval!("100 fahrenheit to preferred"))
+iex> Unity.format!(Unity.eval!("100 fahrenheit to preferred"))
 "37,777778 Grad Celsius"
 ```
 
 ### Locale-aware output
 
 ```elixir
-iex> result = Units.eval!("1234.5 meter to kilometer")
-iex> Units.format!(result, locale: :de)
+iex> result = Unity.eval!("1234.5 meter to kilometer")
+iex> Unity.format!(result, locale: :de)
 "1,2345 Kilometer"
-iex> Units.format!(result, locale: :ja)
+iex> Unity.format!(result, locale: :ja)
 "1.2345 キロメートル"
 ```
 
 ## Interactive REPL
 
 ```
-$ mix run -e "Units.Repl.start()"
-Units v0.1.0 — type "help" for commands, "quit" to exit
+$ mix run -e "Unity.Repl.start()"
+Unity v0.1.0 — type "help" for commands, "quit" to exit
 
 > 3 meters to feet
 9.84252 feet
@@ -146,37 +146,37 @@ Usage:
 
 ```bash
 # Interactive mode
-./units
+./unity
 
 # Single conversion
-./units "3 meters to feet"
+./unity "3 meters to feet"
 
 # Two-argument conversion (GNU units style)
-./units "3 meters" "feet"
+./unity "3 meters" "feet"
 
 # Verbose mode
-./units -v "1 gallon" "liters"
+./unity -v "1 gallon" "liters"
 
 # Terse mode (for scripts)
-./units -t "100 celsius" "fahrenheit"
+./unity -t "100 celsius" "fahrenheit"
 
 # Locale-aware output
-./units --locale de "1234.5 meter to kilometer"
+./unity --locale de "1234.5 meter to kilometer"
 
 # Read from stdin
-echo "3 meters" | ./units - feet
+echo "3 meters" | ./unity - feet
 
 # Pipe-friendly
-echo "3 meters to feet" | ./units
+echo "3 meters to feet" | ./unity
 
 # List unit categories
-./units --list
+./unity --list
 
 # List units in a category
-./units --list length
+./unity --list length
 
 # List conformable units
-./units --conformable meter
+./unity --conformable meter
 ```
 
 ## Expression syntax

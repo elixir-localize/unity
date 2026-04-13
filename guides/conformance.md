@@ -1,6 +1,6 @@
 # GNU `units` Conformance Guide
 
-This document describes how `Units` (the Elixir library) compares with the [GNU `units`](https://www.gnu.org/software/units/) utility (v2.27). Features are grouped by category and rated as **Conforming**, **Partial**, **Different**, or **Not implemented**.
+This document describes how `Unity` (the Elixir library) compares with the [GNU `units`](https://www.gnu.org/software/units/) utility (v2.27). Features are grouped by category and rated as **Conforming**, **Partial**, **Different**, or **Not implemented**.
 
 ## Summary
 
@@ -179,7 +179,7 @@ These features are present in our implementation but not in GNU `units`:
 
 * **Mixed-unit decomposition syntax**. `3.756 hours to h;min;s` decomposes a value across multiple units and displays `3 hours, 45 minutes, 21.6 seconds`. GNU supports unit lists in output but uses a different mechanism.
 
-* **Elixir library API**. `Units.eval/2`, `Units.format/2`, and the full parser/interpreter pipeline are available as a library for embedding in Elixir applications. GNU is a standalone command-line tool only.
+* **Elixir library API**. `Unity.eval/2`, `Unity.format/2`, and the full parser/interpreter pipeline are available as a library for embedding in Elixir applications. GNU is a standalone command-line tool only.
 
 * **Pipe/stdin support**. `echo "3 meters to feet" | units` reads expressions from stdin when not attached to a terminal.
 

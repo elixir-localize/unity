@@ -1,4 +1,4 @@
-defmodule Units.GnuUnitsImporter.Resolver do
+defmodule Unity.GnuUnitsImporter.Resolver do
   @moduledoc """
   Pass 2: resolves parsed GNU unit expressions into numeric factors
   and dimension maps relative to SI primitives.
@@ -23,7 +23,7 @@ defmodule Units.GnuUnitsImporter.Resolver do
   Resolves all definitions in the parsed data to `{factor, dimensions}` pairs.
 
   """
-  @spec resolve_all(Units.GnuUnitsImporter.Parser.parsed()) :: {:ok, %{String.t() => resolved()}}
+  @spec resolve_all(Unity.GnuUnitsImporter.Parser.parsed()) :: {:ok, %{String.t() => resolved()}}
   def resolve_all(parsed) do
     env = %{
       primitives: parsed.primitives,

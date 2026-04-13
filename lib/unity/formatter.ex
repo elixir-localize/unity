@@ -1,4 +1,4 @@
-defmodule Units.Formatter do
+defmodule Unity.Formatter do
   @moduledoc """
   Formats evaluation results for display in terse, verbose, or
   locale-aware modes.
@@ -63,7 +63,7 @@ defmodule Units.Formatter do
   ### Examples
 
       iex> {:ok, unit} = Localize.Unit.new(9.84252, "foot")
-      iex> Units.Formatter.format(unit)
+      iex> Unity.Formatter.format(unit)
       {:ok, "9.84252 feet"}
 
   """
