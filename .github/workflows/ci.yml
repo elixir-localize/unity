@@ -9,7 +9,7 @@ on:
 env:
   MIX_ENV: test
   LOCALIZE_DEFAULT_LOCALE: en
-  ELIXIR_ERL_OPTIONS: "+MImmbcs 2048"
+  ELIXIR_ERL_OPTIONS: "+MImmbcs 16384"
 
 permissions:
   contents: read
