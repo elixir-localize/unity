@@ -9,7 +9,6 @@ on:
 env:
   MIX_ENV: test
   LOCALIZE_DEFAULT_LOCALE: en
-  ELIXIR_ERL_OPTIONS: "+MImmbcs 16384"
 
 permissions:
   contents: read
@@ -78,13 +77,13 @@ jobs:
         run: mix format --check-formatted
 
       - name: Compile (warnings as errors)
-        run: mix compile --warnings-as-errors
+        run: elixir --erl "+MImmbcs 4096" -S mix compile --warnings-as-errors
 
       - name: Download required locales for tests
         run: mix localize.download_locales de ja
 
       - name: Run tests
-        run: mix test
+        run: elixir --erl "+MImmbcs 4096" -S mix test
 
       - name: Restore PLT cache
         if: matrix.lint
