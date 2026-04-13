@@ -40,7 +40,29 @@ defmodule Unity.Parser do
 
   sign = ascii_char([?-, ?+]) |> reduce({List, :to_string, []})
 
-  digits = ascii_string([?0..?9], min: 1)
+  # Digits with optional underscore separators: 1_000_000
+  digits = ascii_string([?0..?9, ?_], min: 1)
+
+  # Hex: 0xFF or 0XFF
+  hex_literal =
+    ignore(string("0"))
+    |> ignore(ascii_string([?x, ?X], 1))
+    |> ascii_string([?0..?9, ?a..?f, ?A..?F, ?_], min: 1)
+    |> reduce(:build_hex)
+
+  # Octal: 0o77
+  octal_literal =
+    ignore(string("0"))
+    |> ignore(ascii_string([?o, ?O], 1))
+    |> ascii_string([?0..?7, ?_], min: 1)
+    |> reduce(:build_octal)
+
+  # Binary: 0b1010
+  binary_literal =
+    ignore(string("0"))
+    |> ignore(ascii_string([?b, ?B], 1))
+    |> ascii_string([?0, ?1, ?_], min: 1)
+    |> reduce(:build_binary)
 
   integer =
     optional(sign)
@@ -68,10 +90,22 @@ defmodule Unity.Parser do
 
   number =
     choice([
+      hex_literal,
+      octal_literal,
+      binary_literal,
       rational,
       float_literal,
       integer
     ])
+
+  # ── String literals ──
+
+  string_literal =
+    ignore(ascii_char([?"]))
+    |> ascii_string([not: ?"], min: 0)
+    |> ignore(ascii_char([?"]))
+    |> map({:erlang, :binary_to_list, []})
+    |> reduce(:build_string)
 
   # ── Identifiers (unit names, function names) ──
 
@@ -105,12 +139,14 @@ defmodule Unity.Parser do
     |> ignore(optional_ws)
     |> ignore(ascii_char([?(]))
     |> ignore(optional_ws)
-    |> parsec(:expression)
-    |> repeat(
-      ignore(optional_ws)
-      |> ignore(ascii_char([?,]))
-      |> ignore(optional_ws)
-      |> parsec(:expression)
+    |> optional(
+      parsec(:expression)
+      |> repeat(
+        ignore(optional_ws)
+        |> ignore(ascii_char([?,]))
+        |> ignore(optional_ws)
+        |> parsec(:expression)
+      )
     )
     |> ignore(optional_ws)
     |> ignore(ascii_char([?)]))
@@ -162,6 +198,7 @@ defmodule Unity.Parser do
       paren_expr,
       function_call,
       variable_ref,
+      string_literal,
       number |> lookahead_not(ignore(optional_ws) |> concat(unit_identifier)),
       quantity
     ])
@@ -401,9 +438,35 @@ defmodule Unity.Parser do
 
   # ── AST builders (called by reduce) ──
 
+  defp strip_underscores(str), do: String.replace(str, "_", "")
+
+  @doc false
+  def build_string([chars]) do
+    {:string, List.to_string(chars)}
+  end
+
+  def build_string([]) do
+    {:string, ""}
+  end
+
+  @doc false
+  def build_hex([hex_str]) do
+    {:number, String.to_integer(strip_underscores(hex_str), 16)}
+  end
+
+  @doc false
+  def build_octal([oct_str]) do
+    {:number, String.to_integer(strip_underscores(oct_str), 8)}
+  end
+
+  @doc false
+  def build_binary([bin_str]) do
+    {:number, String.to_integer(strip_underscores(bin_str), 2)}
+  end
+
   @doc false
   def build_integer(parts) do
-    str = Enum.join(parts)
+    str = parts |> Enum.join() |> strip_underscores()
     {:number, String.to_integer(str)}
   end
 
@@ -417,7 +480,7 @@ defmodule Unity.Parser do
 
     [int_part, frac_part | exp_parts] = rest
 
-    float_str = sign <> int_part <> "." <> frac_part
+    float_str = sign <> strip_underscores(int_part) <> "." <> strip_underscores(frac_part)
 
     float_str =
       case exp_parts do
@@ -425,7 +488,7 @@ defmodule Unity.Parser do
           float_str
 
         _ ->
-          exp_str = Enum.join(exp_parts)
+          exp_str = exp_parts |> Enum.join() |> strip_underscores()
           float_str <> "e" <> exp_str
       end
 
@@ -441,8 +504,8 @@ defmodule Unity.Parser do
       end
 
     [numerator_str, denominator_str] = rest
-    numerator = String.to_integer(sign <> numerator_str)
-    denominator = String.to_integer(denominator_str)
+    numerator = String.to_integer(sign <> strip_underscores(numerator_str))
+    denominator = String.to_integer(strip_underscores(denominator_str))
 
     if denominator == 0 do
       {:error, :division_by_zero}

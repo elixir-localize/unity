@@ -6,14 +6,14 @@ This document describes how `Unity` (the Elixir library) compares with the [GNU 
 
 | Category | Conforming | Partial | Different | Not implemented |
 |---|---|---|---|---|
-| Expression syntax | 9 | 1 | 1 | 0 |
-| Built-in functions | 6 | 0 | 0 | 0 |
+| Expression syntax | 11 | 1 | 1 | 0 |
+| Built-in functions | 7 | 0 | 0 | 0 |
 | Unit database | 0 | 2 | 1 | 0 |
-| Interactive mode | 7 | 1 | 1 | 1 |
-| CLI flags | 14 | 0 | 0 | 1 |
+| Interactive mode | 7 | 2 | 1 | 0 |
+| CLI flags | 13 | 0 | 0 | 1 |
 | Output formatting | 3 | 1 | 0 | 0 |
-| Advanced features | 0 | 3 | 1 | 4 |
-| **Total** | **39** | **8** | **4** | **6** |
+| Advanced features | 0 | 2 | 1 | 4 |
+| **Total** | **41** | **8** | **4** | **5** |
 
 ## Expression syntax
 
@@ -37,6 +37,10 @@ This document describes how `Unity` (the Elixir library) compares with the [GNU 
 
 * **Negative exponents**. `s^-2` and `s^(-2)` both work.
 
+* **Hex, octal, and binary literals**. `0xFF`, `0o77`, `0b1010` for hexadecimal, octal, and binary number entry.
+
+* **Underscore digit separators**. `1_000_000`, `0xFF_FF` for readable large numbers. Underscores are stripped during parsing.
+
 ### Partial
 
 * **Operator precedence**. The five-level precedence hierarchy (`^` > juxtaposition > `*`/`/`/`per` > `+`/`-` > `to`/`in`/`->`) matches GNU for the common cases. However, GNU treats `|` (rational) as a separate highest-precedence operator so that `2|3^1|2` means `(2/3)^(1/2)`. Our parser consumes `|` during number literal parsing which handles simple cases but not exponent-embedded rationals like `2|3^1|2`.
@@ -55,11 +59,13 @@ This document describes how `Unity` (the Elixir library) compares with the [GNU 
 
 * **Trigonometric functions** (`sin`, `cos`, `tan`, `asin`, `acos`, `atan`). Operate on dimensionless/radian values, return plain numbers.
 
+* **Hyperbolic functions** (`sinh`, `cosh`, `tanh`, `asinh`, `acosh`, `atanh`). Full set of hyperbolic trig functions on dimensionless values.
+
 * **Logarithmic functions** (`ln`, `log`, `log2`). `ln` = natural log, `log` = base-10, `log2` = base-2. Same names and semantics as GNU.
 
 * **`exp`**. Exponential function on dimensionless values.
 
-Note: We also support `abs`, `round`, `ceil`, `floor` which are extensions beyond the standard GNU function set.
+Note: We also support `abs`, `round`, `ceil`, `floor`, `factorial`, `gamma`, `atan2`, `hypot`, `gcd`, `lcm`, `min`, `max`, `mod`, and `assert_eq` which are extensions beyond the standard GNU function set.
 
 ## Unit database
 
@@ -99,9 +105,9 @@ Note: We also support `abs`, `round`, `ceil`, `floor` which are extensions beyon
 
 * **`info` command**. We provide `info <unit>` which shows the unit's category, aliases, and conformable units. GNU instead shows the unit's full definition chain when you enter a unit at "You have:" and press Enter at "You want:".
 
-### Not implemented
+### Conforming (partial)
 
-* **Tab completion**. GNU units compiles with readline support for tab completion of unit names. Our REPL provides full line editing and history navigation via the Erlang terminal driver but does not yet support tab completion of unit names.
+* **Tab completion**. Unit names, function names, REPL commands, and custom unit names are completed on Tab. Common prefix expansion with multi-candidate listing. GNU units provides similar readline-based completion.
 
 ## CLI flags
 
@@ -188,5 +194,11 @@ These features are present in our implementation but not in GNU `units`:
 * **Pipe/stdin support**. `echo "3 meters to feet" | units` reads expressions from stdin when not attached to a terminal.
 
 * **`let` bindings**. Named variables with `let distance = 42.195 km` that persist across expressions within a session. The `bindings` REPL command displays all current variable bindings.
+
+* **Date/time arithmetic**. `now()` returns the current UTC datetime, `datetime("2025-01-01T00:00:00Z")` parses ISO 8601 strings, `unixtime(0)` converts Unix timestamps. DateTime subtraction yields a duration in seconds; adding a duration to a DateTime yields a new DateTime. `timestamp(dt)` extracts the Unix timestamp, `today()` returns the current date.
+
+* **Assertions**. `assert_eq(12 inch, 1 foot)` verifies two values are equal after unit conversion. An optional third argument specifies tolerance: `assert_eq(1 mile, 1.60934 km, 1 meter)`. Returns `true` on success or a descriptive error on failure.
+
+* **Extended math functions**. `atan2(y, x)`, `hypot(a, b)`, `factorial(n)`, `gamma(n)`, `gcd(a, b)`, `lcm(a, b)`, `min(a, b)`, `max(a, b)`, `mod(a, b)`, and the full set of hyperbolic trig functions (`sinh`, `cosh`, `tanh`, `asinh`, `acosh`, `atanh`).
 
 * **GNU Units importer**. `Unity.GnuUnitsImporter.import/1` parses the GNU `units` definition file and registers ~2,440 custom units, ~250 dimensionless constants as `let` bindings, and ~75 nonlinear conversion functions (temperature, decibel, gauges, density scales, photography, atmospheric, astronomy, etc.). Imported units support SI prefixes (`millilightsecond`, `kilofurlong`) and power prefixes (`square-smoot`). Nonlinear functions work both as function calls (`tempc(100)`) and as unit conversions (`100 tempc to fahrenheit`). See the [Importing GNU Units Definitions](importing_gnu_units_definitions.md) guide for details.

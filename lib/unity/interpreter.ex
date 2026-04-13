@@ -57,6 +57,12 @@ defmodule Unity.Interpreter do
     {:ok, value, environment}
   end
 
+  # ── String literal ──
+
+  def eval({:string, value}, environment) do
+    {:ok, value, environment}
+  end
+
   # ── Variable reference ──
 
   def eval({:variable, name}, environment) do
@@ -165,12 +171,21 @@ defmodule Unity.Interpreter do
   end
 
   # ── Power ──
+  # For concatenated exponents like t1 → t^1, check if the full name
+  # (e.g., "t1") is a variable before treating it as a unit power.
 
-  def eval({:power, base_ast, exp_ast}, environment) do
-    with {:ok, base, environment} <- eval(base_ast, environment),
-         {:ok, exponent, environment} <- eval(exp_ast, environment) do
-      power_value(base, exponent, environment)
+  def eval({:power, {:unit_name, base}, {:number, exp}} = ast, environment)
+      when is_integer(exp) do
+    full_name = base <> Integer.to_string(exp)
+
+    case Map.fetch(environment, full_name) do
+      {:ok, value} -> {:ok, value, environment}
+      :error -> do_eval_power(ast, environment)
     end
+  end
+
+  def eval({:power, _, _} = ast, environment) do
+    do_eval_power(ast, environment)
   end
 
   # ── Negation ──
@@ -206,6 +221,13 @@ defmodule Unity.Interpreter do
 
   def eval(ast, _environment) do
     {:error, "cannot evaluate: #{inspect(ast)}"}
+  end
+
+  defp do_eval_power({:power, base_ast, exp_ast}, environment) do
+    with {:ok, base, environment} <- eval(base_ast, environment),
+         {:ok, exponent, environment} <- eval(exp_ast, environment) do
+      power_value(base, exponent, environment)
+    end
   end
 
   # ── Unit name resolution ──
@@ -358,8 +380,34 @@ defmodule Unity.Interpreter do
     {:ok, left + right, environment}
   end
 
+  # DateTime + duration (seconds) → DateTime
+  defp add_values(%DateTime{} = dt, %Localize.Unit{} = duration, environment) do
+    case to_seconds(duration) do
+      {:ok, seconds} -> {:ok, DateTime.add(dt, trunc(seconds), :second), environment}
+      {:error, _} = error -> error
+    end
+  end
+
+  defp add_values(%Localize.Unit{} = duration, %DateTime{} = dt, environment) do
+    add_values(dt, duration, environment)
+  end
+
   defp add_values(_left, _right, _environment) do
     {:error, "cannot add incompatible types"}
+  end
+
+  # DateTime - DateTime → duration in seconds
+  defp sub_values(%DateTime{} = left, %DateTime{} = right, environment) do
+    diff = DateTime.diff(left, right, :second)
+    {:ok, Localize.Unit.new!(diff, "second"), environment}
+  end
+
+  # DateTime - duration → DateTime
+  defp sub_values(%DateTime{} = dt, %Localize.Unit{} = duration, environment) do
+    case to_seconds(duration) do
+      {:ok, seconds} -> {:ok, DateTime.add(dt, trunc(-seconds), :second), environment}
+      {:error, _} = error -> error
+    end
   end
 
   defp sub_values(%Localize.Unit{} = left, %Localize.Unit{} = right, environment) do
@@ -538,10 +586,25 @@ defmodule Unity.Interpreter do
     "ln" => :ln,
     "log" => :log,
     "log2" => :log2,
-    "exp" => :exp
+    "exp" => :exp,
+    "sinh" => :sinh,
+    "cosh" => :cosh,
+    "tanh" => :tanh,
+    "asinh" => :asinh,
+    "acosh" => :acosh,
+    "atanh" => :atanh
   }
 
-  @all_functions Map.keys(@unit_functions) ++ Map.keys(@dimensionless_functions)
+  # Functions that operate on plain numbers only (not units).
+  # Single-argument:
+  @scalar_functions_1 ~w(factorial gamma)
+  # Two-argument:
+  @scalar_functions_2 ~w(atan2 hypot gcd lcm min max mod)
+
+  @all_functions Map.keys(@unit_functions) ++
+                  Map.keys(@dimensionless_functions) ++
+                  @scalar_functions_1 ++
+                  @scalar_functions_2
 
   defp apply_function(name, [%Localize.Unit{} = unit], environment)
        when is_map_key(@unit_functions, name) do
@@ -592,13 +655,151 @@ defmodule Unity.Interpreter do
         "log" -> :math.log10(n)
         "log2" -> :math.log2(n)
         "exp" -> :math.exp(n)
+        "sinh" -> :math.sinh(n)
+        "cosh" -> :math.cosh(n)
+        "tanh" -> :math.tanh(n)
+        "asinh" -> :math.asinh(n)
+        "acosh" -> :math.acosh(n)
+        "atanh" -> :math.atanh(n)
       end
 
     {:ok, result, environment}
   end
 
-  defp apply_function(name, args, _environment) when name in @all_functions do
-    {:error, "#{name} expects exactly 1 argument, got #{length(args)}"}
+  # Single-argument scalar functions (plain numbers only)
+  defp apply_function(name, [n], environment)
+       when name in @scalar_functions_1 and is_number(n) do
+    result =
+      case name do
+        "factorial" -> factorial(n)
+        "gamma" -> gamma(n)
+      end
+
+    {:ok, result, environment}
+  end
+
+  # Two-argument scalar functions (plain numbers only)
+  defp apply_function(name, [a, b], environment)
+       when name in @scalar_functions_2 and is_number(a) and is_number(b) do
+    result =
+      case name do
+        "atan2" -> :math.atan2(a, b)
+        "hypot" -> :math.sqrt(a * a + b * b)
+        "gcd" -> Integer.gcd(trunc(a), trunc(b))
+        "lcm" -> lcm(trunc(a), trunc(b))
+        "min" -> min(a, b)
+        "max" -> max(a, b)
+        "mod" -> :math.fmod(a, b)
+      end
+
+    {:ok, result, environment}
+  end
+
+  defp apply_function(name, _args, _environment) when name in @all_functions do
+    {:error, "#{name}: invalid arguments (expected plain numbers)"}
+  end
+
+  # ── Assertions ──
+
+  defp apply_function("assert_eq", [a, b], environment) do
+    do_assert_eq(a, b, nil, environment)
+  end
+
+  defp apply_function("assert_eq", [a, b, tolerance], environment) do
+    do_assert_eq(a, b, tolerance, environment)
+  end
+
+  # ── Date/time functions ──
+
+  defp apply_function("now", [], environment) do
+    {:ok, DateTime.utc_now(), environment}
+  end
+
+  defp apply_function("today", [], environment) do
+    {:ok, DateTime.utc_now() |> DateTime.to_date() |> Date.to_string(), environment}
+  end
+
+  defp apply_function("datetime", [str], environment) when is_binary(str) do
+    case DateTime.from_iso8601(str) do
+      {:ok, dt, _offset} -> {:ok, dt, environment}
+      {:error, _} -> {:error, "invalid datetime: #{inspect(str)}"}
+    end
+  end
+
+  defp apply_function("unixtime", [n], environment) when is_number(n) do
+    {:ok, DateTime.from_unix!(trunc(n)), environment}
+  end
+
+  defp apply_function("timestamp", [%DateTime{} = dt], environment) do
+    {:ok, DateTime.to_unix(dt), environment}
+  end
+
+  # ── Introspection ──
+
+  defp apply_function("unit_of", [%Localize.Unit{} = unit], environment) do
+    {:ok, unit.name, environment}
+  end
+
+  defp apply_function("value_of", [%Localize.Unit{value: value}], environment) do
+    {:ok, value, environment}
+  end
+
+  defp apply_function("value_of", [n], environment) when is_number(n) do
+    {:ok, n, environment}
+  end
+
+  defp apply_function("is_dimensionless", [%Localize.Unit{parsed: parsed}], environment) do
+    result =
+      case Localize.Unit.BaseUnit.base_unit(parsed) do
+        {:ok, base} when base in ["revolution", "part"] -> true
+        _ -> false
+      end
+
+    {:ok, result, environment}
+  end
+
+  defp apply_function("is_dimensionless", [n], environment) when is_number(n) do
+    {:ok, true, environment}
+  end
+
+  # ── Percentage functions ──
+
+  defp apply_function("increase_by", [%Localize.Unit{} = base, pct], environment)
+       when is_number(pct) do
+    new_value = base.value * (1 + pct / 100)
+    {:ok, %{base | value: new_value}, environment}
+  end
+
+  defp apply_function("increase_by", [base, pct], environment)
+       when is_number(base) and is_number(pct) do
+    {:ok, base * (1 + pct / 100), environment}
+  end
+
+  defp apply_function("decrease_by", [%Localize.Unit{} = base, pct], environment)
+       when is_number(pct) do
+    new_value = base.value * (1 - pct / 100)
+    {:ok, %{base | value: new_value}, environment}
+  end
+
+  defp apply_function("decrease_by", [base, pct], environment)
+       when is_number(base) and is_number(pct) do
+    {:ok, base * (1 - pct / 100), environment}
+  end
+
+  defp apply_function("percentage_change", [%Localize.Unit{} = from, %Localize.Unit{} = to], environment) do
+    case Localize.Unit.convert(to, from.name) do
+      {:ok, converted} ->
+        pct = (converted.value - from.value) / from.value * 100
+        {:ok, pct, environment}
+
+      {:error, _} ->
+        {:error, "percentage_change: incompatible units"}
+    end
+  end
+
+  defp apply_function("percentage_change", [from, to], environment)
+       when is_number(from) and is_number(to) do
+    {:ok, (to - from) / from * 100, environment}
   end
 
   # Special conversion function: tempC(100) → 373.15 kelvin
@@ -616,6 +817,82 @@ defmodule Unity.Interpreter do
   defp apply_function(name, _args, _environment) do
     {:error, "unknown function: #{inspect(name)}"}
   end
+
+  defp factorial(n) when is_integer(n) and n >= 0 do
+    Enum.reduce(1..max(n, 1)//1, 1, &Kernel.*/2)
+  end
+
+  defp factorial(n) when is_float(n), do: gamma(n + 1)
+
+  defp gamma(n) do
+    if Code.ensure_loaded?(:math) and function_exported?(:math, :gamma, 1) do
+      apply(:math, :gamma, [n])
+    else
+      # Stirling's approximation for OTP < 27
+      :math.sqrt(2 * :math.pi() / n) * :math.pow(n / :math.exp(1), n)
+    end
+  end
+
+  defp lcm(a, b) do
+    div(abs(a * b), Integer.gcd(a, b))
+  end
+
+  defp to_seconds(%Localize.Unit{} = unit) do
+    case Localize.Unit.convert(unit, "second") do
+      {:ok, result} -> {:ok, result.value}
+      {:error, _} -> {:error, "cannot convert #{unit.name} to a duration"}
+    end
+  end
+
+  # ── Assertion helpers ──
+
+  defp do_assert_eq(a, b, tolerance, environment) do
+    {val_a, val_b} = normalize_for_comparison(a, b)
+
+    tol =
+      case tolerance do
+        nil -> abs(val_a) * 1.0e-9
+        %Localize.Unit{} = u -> convert_to_number(u, a)
+        n when is_number(n) -> abs(n)
+      end
+
+    if abs(val_a - val_b) <= tol do
+      {:ok, true, environment}
+    else
+      {:error, "assertion failed: #{format_value(a)} != #{format_value(b)}"}
+    end
+  end
+
+  defp normalize_for_comparison(%Localize.Unit{} = a, %Localize.Unit{} = b) do
+    case Localize.Unit.convert(b, a.name) do
+      {:ok, converted} -> {to_float_value(a), to_float_value(converted)}
+      {:error, _} -> {to_float_value(a), to_float_value(b)}
+    end
+  end
+
+  defp normalize_for_comparison(a, b), do: {to_float_value(a), to_float_value(b)}
+
+  defp to_float_value(%Localize.Unit{value: v}), do: v * 1.0
+  defp to_float_value(n) when is_number(n), do: n * 1.0
+  defp to_float_value(other), do: other
+
+  defp convert_to_number(%Localize.Unit{} = tolerance, %Localize.Unit{} = target) do
+    case Localize.Unit.convert(tolerance, target.name) do
+      {:ok, converted} -> abs(converted.value)
+      {:error, _} -> abs(tolerance.value)
+    end
+  end
+
+  defp convert_to_number(%Localize.Unit{value: v}, _), do: abs(v)
+
+  defp format_value(%Localize.Unit{} = u) do
+    case Unity.Formatter.format(u) do
+      {:ok, s} -> s
+      _ -> inspect(u.value)
+    end
+  end
+
+  defp format_value(v), do: inspect(v)
 
   defp format_math_error(operation, reason) when is_binary(reason) do
     "cannot #{operation}: #{reason}"

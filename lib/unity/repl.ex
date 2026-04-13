@@ -71,9 +71,14 @@ defmodule Unity.Repl do
   @doc false
   @spec __run_interactive__(keyword(), pid(), reference()) :: :ok
   def __run_interactive__(options, parent, ref) do
+    configure_tab_completion()
     run_repl(options)
     send(parent, {ref, :done})
     :ok
+  end
+
+  defp configure_tab_completion do
+    :io.setopts(:standard_io, expand_fun: &Unity.Repl.Completion.expand/1)
   end
 
   defp run_repl(options) do
@@ -293,11 +298,22 @@ defmodule Unity.Repl do
       3 meters to feet       Convert between units
       60 mph + 10 km/h       Add compatible units
       100 kg * 9.8 m/s^2    Multiply units (also: **)
-      sqrt(9 m^2)            Functions: sqrt, cbrt, abs, round, ceil, floor
       1|3 cup                Rational numbers
+      0xFF, 0o77, 0b1010     Hex, octal, binary literals
+      1_000_000              Underscore digit separators
       let x = 42 km          Variable binding
       _                      Previous result
       _ to feet              Convert previous result
+
+    Functions:
+      sqrt, cbrt, abs, round, ceil, floor
+      sin, cos, tan, asin, acos, atan, sinh, cosh, tanh, asinh, acosh, atanh
+      ln, log, log2, exp, factorial, gamma
+      atan2, hypot, gcd, lcm, min, max, mod
+      now(), today(), datetime("..."), unixtime(n), timestamp(dt)
+      unit_of(expr), value_of(expr), is_dimensionless(expr)
+      increase_by(val, pct), decrease_by(val, pct), percentage_change(a, b)
+      assert_eq(a, b), assert_eq(a, b, tolerance)
 
     Commands:
       help                   Show this help

@@ -1,5 +1,25 @@
 # Changelog
 
+## v0.5.0 (2026-04-13)
+
+### Enhancements
+
+* Added 20 new math functions: hyperbolic trig (`sinh`, `cosh`, `tanh`, `asinh`, `acosh`, `atanh`), two-argument functions (`atan2`, `hypot`, `gcd`, `lcm`, `min`, `max`, `mod`), and `factorial`/`gamma`.
+
+* Hex (`0xFF`), octal (`0o77`), and binary (`0b1010`) number literals. Underscore digit separators (`1_000_000`, `0xFF_FF`) in all number formats.
+
+* Tab completion for unit names, function names, REPL commands, and custom unit names.
+
+* Date/time arithmetic: `now()`, `today()`, `datetime("2025-01-01T00:00:00Z")`, `unixtime(n)`, `timestamp(dt)`. DateTime subtraction yields duration; DateTime ± duration yields DateTime.
+
+* String literal support in expressions (`"..."`) for function arguments.
+
+* Zero-argument function calls (`now()`, `today()`).
+
+* `assert_eq(a, b)` and `assert_eq(a, b, tolerance)` for verifying unit equivalences with automatic conversion and optional tolerance.
+
+* Variables with trailing digits (e.g., `t1`) now resolve correctly from the environment before falling back to concatenated-exponent parsing.
+
 ## v0.4.0 (2026-04-13)
 
 ### Enhancements

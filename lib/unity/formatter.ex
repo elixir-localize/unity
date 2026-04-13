@@ -120,6 +120,21 @@ defmodule Unity.Formatter do
     format_raw_number(number, options)
   end
 
+  def format(%DateTime{} = dt, _options) do
+    {:ok, DateTime.to_iso8601(dt)}
+  end
+
+  def format(%Date{} = date, _options) do
+    {:ok, Date.to_iso8601(date)}
+  end
+
+  def format(true, _options), do: {:ok, "true"}
+  def format(false, _options), do: {:ok, "false"}
+
+  def format(result, _options) when is_binary(result) do
+    {:ok, result}
+  end
+
   def format(result, _options) do
     {:ok, inspect(result)}
   end
