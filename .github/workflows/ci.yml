@@ -82,8 +82,11 @@ jobs:
       - name: Download required locales for tests
         run: mix localize.download_locales de ja
 
+      - name: Debug literal allocator
+        run: elixir -e ':erlang.system_info({:allocator, :erts_mmap}) |> IO.inspect(limit: :infinity, width: 120)'
+
       - name: Run tests
-        run: setarch x86_64 -R mix test
+        run: elixir --erl "+JMsingle true" -S mix test
 
       - name: Restore PLT cache
         if: matrix.lint
