@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.3.0 (2026-04-13)
+
+### Bug Fixes
+
+* Batch load custom units to avoid `:persistent_term` churn.
+
 ## v0.2.0 (2026-04-13)
 
 ### Bug Fixes
