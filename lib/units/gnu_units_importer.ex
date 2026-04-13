@@ -25,7 +25,7 @@ defmodule Units.GnuUnitsImporter do
 
   alias Units.GnuUnitsImporter.{Parser, Resolver, Registrar}
 
-  @bundled_path Application.app_dir(:units, "priv/definitions.units")
+  @bundled_path Application.app_dir(:eunits, "priv/definitions.units")
 
   @system_paths [
     "/opt/homebrew/share/units/definitions.units",

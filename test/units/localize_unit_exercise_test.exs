@@ -19,7 +19,7 @@ defmodule Units.LocalizeUnitExerciseTest do
     CustomRegistry.clear()
 
     # Load GNU units from the bundled definitions file
-    path = Application.app_dir(:units, "priv/definitions.units")
+    path = Application.app_dir(:eunits, "priv/definitions.units")
     {:ok, _stats} = Units.GnuUnitsImporter.import(path)
 
     on_exit(fn -> CustomRegistry.clear() end)
