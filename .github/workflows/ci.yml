@@ -77,13 +77,13 @@ jobs:
         run: mix format --check-formatted
 
       - name: Compile (warnings as errors)
-        run: elixir --erl "+MImmbcs 4096" -S mix compile --warnings-as-errors
+        run: elixir -S mix compile --warnings-as-errors
 
       - name: Download required locales for tests
         run: mix localize.download_locales de ja
 
       - name: Run tests
-        run: elixir --erl "+MImmbcs 4096" -S mix test
+        run: elixir --erl "+MImmbcs 36768" -S mix test
 
       - name: Restore PLT cache
         if: matrix.lint
