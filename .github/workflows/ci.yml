@@ -83,6 +83,8 @@ jobs:
         run: mix localize.download_locales de ja
 
       - name: Run tests
+        env:
+          ERL_FLAGS: "+MImmbcs 4096"
         run: mix test
 
       - name: Restore PLT cache
