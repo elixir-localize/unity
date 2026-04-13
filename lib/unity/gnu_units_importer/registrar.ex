@@ -62,21 +62,26 @@ defmodule Unity.GnuUnitsImporter.Registrar do
           errors: [{String.t(), String.t()}]
         }
   def register_all(resolved) do
-    results =
-      resolved
-      |> Enum.map(fn {name, {factor, dims}} ->
-        register_one(name, factor, dims)
+    {valid_defs, errors} =
+      Enum.reduce(resolved, {%{}, []}, fn {name, {factor, dims}}, {defs, errs} ->
+        case build_definition(name, factor, dims) do
+          {:ok, %{unit: unit_name} = definition} ->
+            {Map.put(defs, unit_name, Map.delete(definition, :unit)), errs}
+
+          {:error, reason} ->
+            {defs, [{name, reason} | errs]}
+        end
       end)
 
-    imported = Enum.count(results, &match?(:ok, &1))
-    errors = Enum.filter(results, &match?({:error, _, _}, &1))
-    error_pairs = Enum.map(errors, fn {:error, name, reason} -> {name, reason} end)
+    # Register all valid definitions in a single persistent_term update
+    # to avoid accumulating intermediate literal areas in memory.
+    case Localize.Unit.CustomRegistry.register_batch(valid_defs) do
+      {:ok, count} ->
+        %{imported: count, skipped: map_size(resolved) - count, errors: Enum.reverse(errors)}
 
-    %{
-      imported: imported,
-      skipped: length(results) - imported,
-      errors: error_pairs
-    }
+      {:error, reason} ->
+        %{imported: 0, skipped: map_size(resolved), errors: [{"batch", reason} | Enum.reverse(errors)]}
+    end
   end
 
   @doc """
