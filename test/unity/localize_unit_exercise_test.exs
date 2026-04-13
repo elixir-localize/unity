@@ -11,6 +11,8 @@ defmodule Unity.LocalizeUnitExerciseTest do
 
   use ExUnit.Case, async: false
 
+  @moduletag :integration
+
   alias Localize.Unit
   alias Localize.Unit.Math
   alias Localize.Unit.CustomRegistry
