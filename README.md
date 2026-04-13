@@ -37,7 +37,7 @@ iex> result.value
 9.84251968503937
 
 iex> Units.format!(Units.eval!("60 mph to km/h"))
-"96.561 kilometers per hour"
+"96.56064 kilometers per hour"
 
 iex> Units.format!(Units.eval!("100 celsius to fahrenheit"))
 "212 degrees Fahrenheit"
@@ -72,7 +72,7 @@ iex> Units.format!(Units.eval!("100 meter to imperial"))
 # "preferred" uses the current locale's measurement system
 iex> Localize.put_locale(:de)
 iex> Units.format!(Units.eval!("100 fahrenheit to preferred"))
-"37.777778 Grad Celsius"
+"37,777778 Grad Celsius"
 ```
 
 ### Locale-aware output
@@ -80,9 +80,9 @@ iex> Units.format!(Units.eval!("100 fahrenheit to preferred"))
 ```elixir
 iex> result = Units.eval!("1234.5 meter to kilometer")
 iex> Units.format!(result, locale: :de)
-"1,234 Kilometer"
+"1,2345 Kilometer"
 iex> Units.format!(result, locale: :ja)
-"1.234 キロメートル"
+"1.2345 キロメートル"
 ```
 
 ## Interactive REPL
@@ -92,16 +92,16 @@ $ mix run -e "Units.Repl.start()"
 Units v0.1.0 — type "help" for commands, "quit" to exit
 
 > 3 meters to feet
-9.843 feet
+9.84252 feet
 
 > 60 mph to km/h
-96.561 kilometers per hour
+96.56064 kilometers per hour
 
 > 100 kg * 9.8 m/s^2
 980 kilogram-meter-per-square-second
 
 > 1 gallon to liters
-3.785 liters
+3.785412 liters
 
 > 12 ft + 3 in to ft
 12.25 feet
@@ -113,7 +113,7 @@ Units v0.1.0 — type "help" for commands, "quit" to exit
 300 centimeters
 
 > 1|3 cup to mL
-78.863 milliliters
+78.862746 milliliters
 
 > 3.756 hours to h;min;s
 3 hours, 45 minutes, 21.6 seconds
@@ -125,13 +125,13 @@ Units v0.1.0 — type "help" for commands, "quit" to exit
 2 hours
 
 > distance / time
-21.098 kilometers per hour
+21.0975 kilometers per hour
 
 > locale de
 Locale set to :de
 
 > 1234.5 meter to kilometer
-1,234 Kilometer
+1,2345 Kilometer
 ```
 
 ## CLI (escript)
