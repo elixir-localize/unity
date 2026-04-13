@@ -69,9 +69,6 @@ jobs:
           restore-keys: |
             mix-${{ matrix.elixir }}-${{ matrix.otp }}-
 
-      - name: Increase mmap limit for BEAM literal allocator
-        run: sudo sysctl -w vm.max_map_count=262144
-
       - name: Install dependencies
         run: mix deps.get
 
@@ -86,7 +83,7 @@ jobs:
         run: mix localize.download_locales de ja
 
       - name: Run tests
-        run: mix test
+        run: setarch x86_64 -R mix test
 
       - name: Restore PLT cache
         if: matrix.lint
