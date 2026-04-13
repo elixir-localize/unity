@@ -8,12 +8,12 @@ This document describes how `Unity` (the Elixir library) compares with the [GNU 
 |---|---|---|---|---|
 | Expression syntax | 9 | 1 | 1 | 0 |
 | Built-in functions | 6 | 0 | 0 | 0 |
-| Unit database | 0 | 1 | 1 | 0 |
+| Unit database | 0 | 2 | 1 | 0 |
 | Interactive mode | 7 | 1 | 1 | 1 |
-| CLI flags | 13 | 0 | 0 | 2 |
+| CLI flags | 14 | 0 | 0 | 1 |
 | Output formatting | 3 | 1 | 0 | 0 |
-| Advanced features | 0 | 0 | 1 | 6 |
-| **Total** | **38** | **4** | **4** | **9** |
+| Advanced features | 0 | 1 | 1 | 5 |
+| **Total** | **39** | **6** | **4** | **7** |
 
 ## Expression syntax
 
@@ -65,11 +65,13 @@ Note: We also support `abs`, `round`, `ceil`, `floor` which are extensions beyon
 
 ### Partial
 
-* **Unit coverage**. GNU ships with approximately 3,600 named units covering SI, CGS, US customary, British Imperial, historical, chemical, astronomical, and esoteric units. We use the CLDR unit database via `Localize.Unit`, which covers approximately 155 base unit types with full SI prefix support (generating thousands of prefixed variants like `kilometer`, `milligram`, `gigahertz`). Common scientific and everyday units are well covered. Obscure historical units (aeginamina, pottles, firkins) and domain-specific units (wire gauges, paper sizes, baking densities) are not present.
+* **Unit coverage**. GNU ships with approximately 3,600 named units covering SI, CGS, US customary, British Imperial, historical, chemical, astronomical, and esoteric units. We use the CLDR unit database via `Localize.Unit` as a foundation (~155 base unit types with full SI prefix support), augmented by the GNU Units importer which registers ~2,460 additional custom units and ~250 dimensionless constants as `let` bindings. Combined coverage is approximately 2,600 named units plus SI-prefixed variants. Most practical scientific, engineering, and everyday units are covered. Remaining gaps are primarily music notation units (wholenote-based), a handful of radioactivity units using the `event` primitive, and ~340 definitions whose resolution chains depend on unimplemented features (functions, the `+` operator in definitions).
+
+* **SI prefixes on custom units**. SI prefixes (`milli-`, `kilo-`, `micro-`, etc.) and power prefixes (`square-`, `cubic-`, `pow4-`, etc.) are recognised on imported custom units. For example, after importing `lightsecond` from GNU definitions, `millilightsecond` and `kilolightsecond` work automatically.
 
 ### Different
 
-* **Unit source**. GNU reads a plain-text definitions file (`/usr/share/units/definitions.units`) that users can extend. We derive unit knowledge from the Unicode CLDR database via `Localize.Unit`. This means our unit names follow CLDR conventions (`meter`, `kilometer-per-hour`, `cubic-centimeter`) rather than GNU conventions (`meter`, `km/hr`, `cm^3`). The trade-off is fewer total units but guaranteed locale-aware formatting in over 500 locales.
+* **Unit source**. GNU reads a plain-text definitions file (`/usr/share/units/definitions.units`) that users can extend. We derive unit knowledge from the Unicode CLDR database via `Localize.Unit`, extended by importing the GNU definitions file via `Unity.GnuUnitsImporter`. Unit names follow CLDR conventions (`meter`, `kilometer-per-hour`, `cubic-centimeter`) rather than GNU conventions (`meter`, `km/hr`, `cm^3`). The trade-off is locale-aware formatting in over 500 locales.
 
 ## Interactive mode (REPL)
 
@@ -87,7 +89,7 @@ Note: We also support `abs`, `round`, `ceil`, `floor` which are extensions beyon
 
 * **`quit` / `exit`**. Exits the REPL. Ctrl-D (EOF) also works.
 
-* **History file**. Command history is persisted to `~/.units_history` across REPL sessions via `:group_history`, analogous to GNU's `-H` flag.
+* **History file**. Command history is persisted across REPL sessions to `~/.unity_history/` using the Erlang shell's built-in history, analogous to GNU's `-H` flag. The REPL bootstraps the Erlang terminal driver via `shell:start_interactive/1` when run outside IEx, providing full line editing (arrow keys, Ctrl-A/E, etc.) and history navigation.
 
 ### Partial
 
@@ -99,7 +101,7 @@ Note: We also support `abs`, `round`, `ceil`, `floor` which are extensions beyon
 
 ### Not implemented
 
-* **Readline / tab completion**. GNU units compiles with readline support for tab completion of unit names and command history navigation. Our REPL uses Erlang's built-in line editor which provides basic line editing and history navigation but no tab completion of unit names.
+* **Tab completion**. GNU units compiles with readline support for tab completion of unit names. Our REPL provides full line editing and history navigation via the Erlang terminal driver but does not yet support tab completion of unit names.
 
 ## CLI flags
 
@@ -127,11 +129,11 @@ Note: We also support `abs`, `round`, `ceil`, `floor` which are extensions beyon
 
 * **`--list`**. Lists known units or categories.
 
+* **`-f` / `--file`**. Load custom unit definition files (`.exs` format). Can be specified multiple times. GNU uses its own plain-text format; we use Elixir term files compatible with `Localize.Unit.load_custom_units/1`.
+
 * **`--version` / `--help`**. Standard informational flags.
 
 ### Not implemented
-
-* **`-f` / `--file`**. Load custom unit definition files. Not applicable since we use the CLDR database rather than a definitions file.
 
 * **`--units`**. Select CGS unit system (gauss, esu, emu, etc.). Out of scope.
 
@@ -155,9 +157,11 @@ Note: We also support `abs`, `round`, `ceil`, `floor` which are extensions beyon
 
 * **Locale-aware output**. GNU has minimal locale support (locale-conditional unit definitions, `UNITS_ENGLISH` environment variable for US vs. UK units). We provide full locale-aware number and unit name formatting via `Localize`, supporting over 500 locales with correct decimal separators, grouping, and translated unit names (e.g., "キロメートル" in Japanese, "Kilometer" in German). This is a significant extension beyond GNU.
 
-### Not implemented
+### Partial
 
-* **Custom unit definition files**. GNU reads a comprehensive plain-text definitions file and supports user overrides via `~/.units` and `-f` flags. We use the CLDR database exclusively and do not support user-defined units.
+* **Custom unit definition files**. GNU reads a comprehensive plain-text definitions file and supports user overrides via `~/.units` and `-f` flags. We support custom unit definition files in Elixir `.exs` format, loadable via `Localize.Unit.load_custom_units/1` or the `-f` CLI flag. The `Unity.GnuUnitsImporter` module can parse and convert the GNU definitions file, importing ~2,460 units and ~250 dimensionless constants. User-defined units can also be registered at runtime via `Localize.Unit.define_unit/2`.
+
+### Not implemented
 
 * **Non-linear unit conversions**. GNU supports arbitrary non-linear conversions defined by forward/inverse expression pairs (temperature scales, wire gauges, dB scales, etc.). We support temperature conversion via `Localize.Unit.convert/2` but do not support user-defined non-linear functions.
 
@@ -183,4 +187,6 @@ These features are present in our implementation but not in GNU `units`:
 
 * **Pipe/stdin support**. `echo "3 meters to feet" | units` reads expressions from stdin when not attached to a terminal.
 
-* **`let` bindings**. Named variables with `let distance = 42.195 km` that persist across expressions within a session.
+* **`let` bindings**. Named variables with `let distance = 42.195 km` that persist across expressions within a session. The `bindings` REPL command displays all current variable bindings.
+
+* **GNU Units importer**. `Unity.GnuUnitsImporter.import/1` parses the GNU `units` definition file and registers ~2,460 custom units plus ~250 dimensionless constants as `let` bindings. Imported units support SI prefixes (`millilightsecond`, `kilofurlong`) and power prefixes (`square-smoot`). See the [Importing GNU Units Definitions](importing_gnu_units_definitions.md) guide for details.

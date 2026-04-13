@@ -1,10 +1,24 @@
 # Changelog
 
-## v0.1.0 (2026-04-13)
+## v0.2.0 (2026-04-13)
 
 ### Bug Fixes
 
-* Fixes terminal handling (backspace, history) when the REPL is started with `mix run -e "Unity.Repl.start()"`.
+* REPL now has full line editing and history when started via `mix run -e "Unity.Repl.start()"`. Bootstraps the Erlang terminal driver via `shell:start_interactive/1` when not running under IEx. History is persisted to `~/.unity_history/`.
+
+### Enhancements
+
+* GNU Units importer now imports ~2,460 custom units (was ~1,700) and extracts ~250 dimensionless constants as `let` bindings.
+
+* Added support for all CLDR unit categories including mass-density, voltage, electric-charge, illuminance, radioactivity, and other derived SI quantities.
+
+* Added derived category mappings for compound SI quantities not in CLDR (specific-heat, volume-flow-rate, areal-density, thermal-conductivity, dynamic-viscosity, etc.).
+
+* CLDR compound base unit strings now use correct component ordering (kilogram, meter, second, ampere, kelvin, ...) matching the CLDR `base_unit_to_quantity` keys.
+
+* Added `bindings` REPL command to display current variable bindings.
+
+* `import/1` now returns a `:constants` map of dimensionless values suitable for use as evaluation environment bindings.
 
 ## v0.1.0 (2026-04-11)
 
