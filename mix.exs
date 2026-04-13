@@ -6,10 +6,10 @@ defmodule Units.MixProject do
 
   def project do
     [
-      app: :units,
+      app: :eunits,
       version: @version,
       elixir: "~> 1.17",
-      name: "Units",
+      name: "Elixir Units",
       source_url: @source_url,
       docs: docs(),
       description: description(),
