@@ -9,7 +9,7 @@ on:
 env:
   MIX_ENV: test
   LOCALIZE_DEFAULT_LOCALE: en
-  ERL_FLAGS: "+MImmbcs 4096"
+  ERL_FLAGS: "+MImmbcs 16384"
 
 permissions:
   contents: read
