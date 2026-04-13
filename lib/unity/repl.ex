@@ -9,7 +9,7 @@ defmodule Unity.Repl do
   """
 
   @version Mix.Project.config()[:version]
-  @history_file "~/.units_history"
+  @shell_history_dir "~/.unity_history"
 
   @doc """
   Starts the interactive REPL.
@@ -21,37 +21,101 @@ defmodule Unity.Repl do
   * `:locale` - initial locale for formatting. Defaults to the current
     process locale.
 
-  * `:history_file` - path to a file for persisting command history.
-    Defaults to `"~/.units_history"`. Set to `nil` to disable.
+  * `:history_file` - path to a directory for persisting command history
+    across sessions. Defaults to `"~/.unity_history"`. Set to `nil` to
+    disable. Only used when the REPL bootstraps its own terminal (i.e.
+    not running under IEx).
 
   """
   @spec start(keyword()) :: :ok
   def start(options \\ []) do
+    if needs_terminal_bootstrap?() do
+      start_with_terminal(options)
+    else
+      run_repl(options)
+    end
+  end
+
+  defp start_with_terminal(options) do
+    configure_shell_history(options)
+
+    parent = self()
+    ref = make_ref()
+
+    :shell.start_interactive({__MODULE__, :__run_interactive__, [options, parent, ref]})
+
+    receive do
+      {^ref, :done} -> :ok
+    end
+  end
+
+  # Configures the Erlang shell's built-in history to use a Unity-specific
+  # directory so REPL history is persisted across sessions and kept separate
+  # from the standard Erlang/IEx shell history.
+  defp configure_shell_history(options) do
+    history_dir =
+      case Keyword.get(options, :history_file, @shell_history_dir) do
+        nil -> nil
+        path -> resolve_history_path(path)
+      end
+
+    if history_dir do
+      File.mkdir_p(history_dir)
+      Application.put_env(:kernel, :shell_history, :enabled)
+      Application.put_env(:kernel, :shell_history_path, String.to_charlist(history_dir))
+    else
+      Application.put_env(:kernel, :shell_history, :disabled)
+    end
+  end
+
+  @doc false
+  @spec __run_interactive__(keyword(), pid(), reference()) :: :ok
+  def __run_interactive__(options, parent, ref) do
+    run_repl(options)
+    send(parent, {ref, :done})
+    :ok
+  end
+
+  defp run_repl(options) do
     quiet = Keyword.get(options, :quiet, false)
 
     if locale = Keyword.get(options, :locale) do
       Localize.put_locale(locale)
     end
 
-    history_path = resolve_history_path(Keyword.get(options, :history_file, @history_file))
-    load_history(history_path)
-
     unless quiet do
       IO.puts("Unity v#{@version} — type \"help\" for commands, \"quit\" to exit\n")
     end
 
-    loop(%{}, history_path)
+    loop(%{})
   end
 
-  defp loop(environment, history_path) do
+  # Returns true when we have a real terminal but no interactive shell (iex)
+  # providing line editing. In that case we need to bootstrap the Erlang
+  # terminal driver via shell:start_interactive/1.
+  defp needs_terminal_bootstrap? do
+    not iex_running?() and tty?()
+  end
+
+  defp iex_running? do
+    Code.ensure_loaded?(IEx) and function_exported?(IEx, :started?, 0) and
+      apply(IEx, :started?, [])
+  end
+
+  defp tty? do
+    case :io.getopts(:standard_io) do
+      options when is_list(options) -> Keyword.get(options, :echo, false) != false
+      _ -> false
+    end
+  end
+
+  defp loop(environment) do
     case IO.gets("> ") do
       :eof ->
         IO.puts("")
-        save_history(history_path)
         :ok
 
       {:error, _reason} ->
-        save_history(history_path)
         :ok
 
       input ->
@@ -59,10 +123,9 @@ defmodule Unity.Repl do
 
         case handle_input(input, environment) do
           {:continue, environment} ->
-            loop(environment, history_path)
+            loop(environment)
 
           :quit ->
-            save_history(history_path)
             :ok
         end
     end
@@ -197,50 +260,6 @@ defmodule Unity.Repl do
     path
     |> String.replace_leading("~", System.user_home!())
     |> Path.expand()
-  end
-
-  defp load_history(nil), do: :ok
-
-  defp load_history(path) do
-    if group_history_available?() do
-      case File.read(path) do
-        {:ok, content} ->
-          content
-          |> String.split("\n", trim: true)
-          |> Enum.each(fn line ->
-            apply(:group_history, :add, [String.to_charlist(line)])
-          end)
-
-        {:error, _} ->
-          :ok
-      end
-    end
-  end
-
-  defp save_history(nil), do: :ok
-
-  defp save_history(path) do
-    if group_history_available?() do
-      case apply(:group_history, :get, []) do
-        lines when is_list(lines) ->
-          history =
-            lines
-            |> Enum.reverse()
-            |> Enum.take(-500)
-            |> Enum.map_join("\n", &List.to_string/1)
-
-          if history != "" do
-            File.write(path, history <> "\n")
-          end
-
-        _ ->
-          :ok
-      end
-    end
-  end
-
-  defp group_history_available? do
-    Code.ensure_loaded?(:group_history) and function_exported?(:group_history, :get, 0)
   end
 
   # ── Help ──
