@@ -43,8 +43,10 @@ defmodule Unity.GnuUnitsImporter do
 
   ### Returns
 
-  * `{:ok, stats}` where stats is a map with `:imported`, `:skipped`, and
-    `:errors` keys.
+  * `{:ok, stats}` where stats is a map with `:imported`, `:skipped`,
+    `:errors`, and `:constants` keys. The `:constants` map contains
+    dimensionless values (e.g., `"dozen" => 12.0`) suitable for use
+    as `let` bindings in a Unity evaluation environment.
 
   * `{:error, reason}` if the file cannot be found or parsed.
 
@@ -55,7 +57,8 @@ defmodule Unity.GnuUnitsImporter do
          {:ok, parsed} <- Parser.parse_file(file_path),
          {:ok, resolved} <- Resolver.resolve_all(parsed) do
       stats = Registrar.register_all(resolved)
-      {:ok, stats}
+      constants = Registrar.constants(resolved)
+      {:ok, Map.put(stats, :constants, constants)}
     end
   end
 

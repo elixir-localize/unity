@@ -96,6 +96,30 @@ defmodule Unity.GnuUnitsImporter.Registrar do
     end)
   end
 
+  @doc """
+  Extracts dimensionless resolved entries as named constants.
+
+  Returns a map of `%{name => numeric_value}` suitable for use as
+  `let` bindings in a Unity evaluation environment.
+
+  ### Arguments
+
+  * `resolved` — map of `name => {factor, dimensions}` from the resolver.
+
+  ### Returns
+
+  * A map of `%{String.t() => number()}`.
+
+  """
+  @spec constants(%{String.t() => {float(), map()}}) :: %{String.t() => number()}
+  def constants(resolved) do
+    resolved
+    |> Enum.filter(fn {_name, {_factor, dims}} -> map_size(dims) == 0 end)
+    |> Enum.map(fn {name, {factor, _dims}} -> {String.downcase(name), factor} end)
+    |> Enum.filter(fn {name, _} -> Regex.match?(@valid_name_pattern, name) end)
+    |> Map.new()
+  end
+
   # ── Private ──
 
   defp register_one(name, factor, dims) do

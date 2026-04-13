@@ -144,6 +144,11 @@ defmodule Unity.Repl do
     {:continue, environment}
   end
 
+  defp handle_input("bindings", environment) do
+    show_bindings(environment)
+    {:continue, environment}
+  end
+
   defp handle_input("list" <> rest, environment) do
     category = String.trim(rest)
     list_units(category)
@@ -262,6 +267,26 @@ defmodule Unity.Repl do
     |> Path.expand()
   end
 
+  # ── Bindings ──
+
+  defp show_bindings(environment) when map_size(environment) == 0 do
+    IO.puts("No bindings set.")
+  end
+
+  defp show_bindings(environment) do
+    environment
+    |> Enum.sort_by(fn {name, _} -> name end)
+    |> Enum.each(fn {name, value} ->
+      formatted =
+        case Unity.Formatter.format(value) do
+          {:ok, str} -> str
+          {:error, _} -> inspect(value)
+        end
+
+      IO.puts("  #{name} = #{formatted}")
+    end)
+  end
+
   # ── Help ──
 
   defp print_help do
@@ -278,6 +303,7 @@ defmodule Unity.Repl do
 
     Commands:
       help                   Show this help
+      bindings               Show current variable bindings
       list [category]        List known units
       search <text>          Search unit names containing <text>
       conformable <unit>     List units convertible with <unit>
