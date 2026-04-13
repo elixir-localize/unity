@@ -40,7 +40,7 @@ defmodule Unity.MixProject do
   defp package do
     [
       licenses: ["Apache-2.0"],
-      links: linke(),
+      links: links(),
       files: ~w(lib priv .formatter.exs mix.exs README.md CHANGELOG.md LICENSE.md)
     ]
   end
