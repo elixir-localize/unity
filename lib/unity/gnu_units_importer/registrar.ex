@@ -221,6 +221,47 @@ defmodule Unity.GnuUnitsImporter.Registrar do
     end
   end
 
+  # Maps well-known compound base units to descriptive category names.
+  # These are standard SI derived quantities that don't have CLDR categories.
+  @derived_categories %{
+    "square-meter-per-square-second-kelvin" => "specific-heat",
+    "kilogram-per-square-meter" => "areal-density",
+    "cubic-meter-per-second" => "volume-flow-rate",
+    "kilogram-meter-per-cubic-second-kelvin" => "thermal-conductivity",
+    "square-meter-ampere" => "magnetic-moment",
+    "candela-steradian-per-square-meter" => "luminance",
+    "meter-per-kilogram" => "specific-length",
+    "per-meter" => "wave-number",
+    "kilogram-per-meter" => "linear-density",
+    "kilogram-square-meter-per-square-second-kelvin" => "heat-capacity",
+    "cubic-second-kelvin-per-kilogram" => "thermal-resistance",
+    "second-per-meter" => "slowness",
+    "kilogram-per-meter-second" => "dynamic-viscosity",
+    "kilogram-per-cubic-second" => "radiant-flux-density",
+    "square-meter-per-second" => "kinematic-viscosity",
+    "kilogram-square-meter-per-second" => "angular-momentum",
+    "kilogram-per-square-second" => "surface-tension",
+    "kilogram-meter-per-second" => "momentum",
+    "candela-second-steradian" => "luminous-energy",
+    "candela-steradian" => "luminous-flux",
+    "candela-second-steradian-per-square-meter" => "luminous-exposure",
+    "per-cubic-meter" => "number-density",
+    "kilogram-square-meter-per-square-second-kelvin-mole" => "molar-heat-capacity",
+    "kilogram-per-cubic-second-kelvin" => "heat-transfer-coefficient",
+    "bit-per-second" => "data-rate",
+    "per-mole" => "molar-inverse",
+    "per-square-meter" => "areal-number-density",
+    "cubic-meter-per-mole" => "molar-volume",
+    "kilogram-per-square-meter-second" => "mass-flux",
+    "kilogram-per-second" => "mass-flow-rate",
+    "per-kelvin" => "thermal-expansion",
+    "per-square-second" => "angular-acceleration",
+    "kilogram-per-pow4-meter-second" => "spectral-viscosity",
+    "pow6-meter" => "pow6-length",
+    "pow8-meter" => "pow8-length",
+    "pow4-meter" => "pow4-length"
+  }
+
   defp lookup_category(base_unit) do
     category =
       Map.get(@base_unit_to_quantity, base_unit) ||
@@ -229,10 +270,17 @@ defmodule Unity.GnuUnitsImporter.Registrar do
           _ -> nil
         end
 
-    if is_nil(category) do
-      {:error, "unknown category for base unit: #{base_unit}"}
-    else
-      {:ok, category}
+    cond do
+      not is_nil(category) ->
+        {:ok, category}
+
+      Map.has_key?(@derived_categories, base_unit) ->
+        {:ok, @derived_categories[base_unit]}
+
+      true ->
+        # Use the base unit string as a fallback category. Units with the
+        # same compound base unit share dimensions and are conformable.
+        {:ok, base_unit}
     end
   end
 
