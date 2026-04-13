@@ -48,6 +48,7 @@ defmodule Units.MixProject do
   defp docs do
     [
       main: "readme",
+      formatters: ["html", "markdown"],
       extras: [
         "README.md",
         "CHANGELOG.md",
