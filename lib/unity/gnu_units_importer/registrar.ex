@@ -75,13 +75,8 @@ defmodule Unity.GnuUnitsImporter.Registrar do
 
     # Register all valid definitions in a single persistent_term update
     # to avoid accumulating intermediate literal areas in memory.
-    case Localize.Unit.CustomRegistry.register_batch(valid_defs) do
-      {:ok, count} ->
-        %{imported: count, skipped: map_size(resolved) - count, errors: Enum.reverse(errors)}
-
-      {:error, reason} ->
-        %{imported: 0, skipped: map_size(resolved), errors: [{"batch", reason} | Enum.reverse(errors)]}
-    end
+    {:ok, count} = Localize.Unit.CustomRegistry.register_batch(valid_defs)
+    %{imported: count, skipped: map_size(resolved) - count, errors: Enum.reverse(errors)}
   end
 
   @doc """
@@ -126,19 +121,6 @@ defmodule Unity.GnuUnitsImporter.Registrar do
   end
 
   # ── Private ──
-
-  defp register_one(name, factor, dims) do
-    case build_definition(name, factor, dims) do
-      {:ok, %{unit: unit_name} = definition} ->
-        case Localize.Unit.define_unit(unit_name, Map.delete(definition, :unit)) do
-          :ok -> :ok
-          {:error, reason} -> {:error, name, reason}
-        end
-
-      {:error, reason} ->
-        {:error, name, reason}
-    end
-  end
 
   defp build_definition(name, factor, dims) do
     lower_name = String.downcase(name)
