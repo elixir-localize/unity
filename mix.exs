@@ -41,14 +41,19 @@ defmodule Units.MixProject do
     [
       licenses: ["Apache-2.0"],
       links: %{"GitHub" => @source_url},
-      files: ~w(lib .formatter.exs mix.exs README.md CHANGELOG.md LICENSE.md)
+      files: ~w(lib priv .formatter.exs mix.exs README.md CHANGELOG.md LICENSE.md)
     ]
   end
 
   defp docs do
     [
       main: "readme",
-      extras: ["README.md", "CHANGELOG.md", "guides/conformance.md"],
+      extras: [
+        "README.md",
+        "CHANGELOG.md",
+        "guides/conformance.md",
+        "guides/importing_gnu_units_definitions.md"
+      ],
       groups_for_extras: [Guides: ~r/guides\/.*/],
       source_ref: "v#{@version}"
     ]
@@ -56,7 +61,7 @@ defmodule Units.MixProject do
 
   defp deps do
     [
-      {:localize, path: "../localize"},
+      {:localize, "~> 0.1"},
       {:nimble_parsec, "~> 1.0"},
       {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},
       {:ex_doc, "~> 0.34", only: :release, runtime: false}

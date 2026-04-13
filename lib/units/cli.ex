@@ -41,7 +41,8 @@ defmodule Units.CLI do
           d: :digits,
           e: :exponential,
           o: :output_format,
-          s: :strict
+          s: :strict,
+          f: :file
         ],
         switches: [
           verbose: :boolean,
@@ -53,12 +54,16 @@ defmodule Units.CLI do
           locale: :string,
           digits: :integer,
           output_format: :string,
+          file: :keep,
           conformable: :string,
           list: :string,
           version: :boolean,
           help: :boolean
         ]
       )
+
+    # Load custom unit files before any evaluation
+    load_custom_unit_files(options)
 
     cond do
       options[:version] ->
@@ -206,6 +211,20 @@ defmodule Units.CLI do
     end
   end
 
+  defp load_custom_unit_files(options) do
+    options
+    |> Keyword.get_values(:file)
+    |> Enum.each(fn path ->
+      case Localize.Unit.load_custom_units(path) do
+        {:ok, count} ->
+          IO.puts(:stderr, "Loaded #{count} custom unit(s) from #{path}")
+
+        {:error, reason} ->
+          IO.puts(:stderr, Units.Error.format("cannot load #{path}: #{reason}"))
+      end
+    end)
+  end
+
   defp format_from_options(options) do
     cond do
       options[:verbose] -> :verbose
@@ -243,6 +262,7 @@ defmodule Units.CLI do
       -d, --digits <n>       Maximum fractional digits (default: 6)
       -e, --exponential      Scientific notation output
       -o, --output-format <fmt>  Printf-style format (e.g., "%.8g")
+      -f, --file <path>      Load custom unit definitions (.exs file)
       --locale <id>          Set formatting locale
       --conformable <unit>   List conformable units
       --list [category]      List known units or categories
