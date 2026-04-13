@@ -212,6 +212,73 @@ defmodule Unity.GnuUnitsImporterTest do
     end
   end
 
+  # ── SI prefix with imported custom units ──
+
+  describe "SI-prefixed custom units" do
+    setup do
+      parsed =
+        Parser.parse_content("""
+        m !
+        s !
+        lightsecond 299792458 m
+        smoot 1.7018 m
+        fortnight 1209600 s
+        """)
+
+      {:ok, resolved} = Resolver.resolve_all(parsed)
+      Registrar.register_all(resolved)
+      :ok
+    end
+
+    test "parses SI-prefixed custom unit" do
+      result = Unity.eval!("1 millilightsecond")
+      assert result.name == "millilightsecond"
+    end
+
+    test "converts milli-prefixed custom unit to base unit" do
+      result = Unity.eval!("1 millilightsecond to meter")
+      assert_in_delta result.value, 299_792.458, 0.01
+    end
+
+    test "converts kilo-prefixed custom unit to base unit" do
+      result = Unity.eval!("1 kilolightsecond to meter")
+      assert_in_delta result.value, 299_792_458_000.0, 1.0
+    end
+
+    test "converts micro-prefixed custom unit to base unit" do
+      result = Unity.eval!("1 microfortnight to second")
+      assert_in_delta result.value, 1.2096, 0.0001
+    end
+
+    test "arithmetic with SI-prefixed custom units" do
+      result = Unity.eval!("2 millilightsecond + 3 millilightsecond")
+      assert_in_delta result.value, 5.0, 0.001
+      assert result.name == "millilightsecond"
+    end
+
+    test "conversion between SI-prefixed and bare custom unit" do
+      result = Unity.eval!("1 kilosmoot to smoot")
+      assert_in_delta result.value, 1000.0, 0.1
+    end
+
+    test "bare custom unit still works alongside prefixed" do
+      result = Unity.eval!("1 lightsecond to meter")
+      assert_in_delta result.value, 299_792_458.0, 1.0
+    end
+
+    test "unit whose name starts with an SI prefix is not split" do
+      Localize.Unit.define_unit("terrascope", %{
+        base_unit: "meter",
+        factor: 1.0,
+        category: "length"
+      })
+
+      result = Unity.eval!("5 terrascope")
+      assert result.name == "terrascope"
+      assert result.value == 5
+    end
+  end
+
   # ── Integration tests ──
 
   describe "GnuUnitsImporter.import/1" do
