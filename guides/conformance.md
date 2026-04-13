@@ -12,8 +12,8 @@ This document describes how `Unity` (the Elixir library) compares with the [GNU 
 | Interactive mode | 7 | 1 | 1 | 1 |
 | CLI flags | 14 | 0 | 0 | 1 |
 | Output formatting | 3 | 1 | 0 | 0 |
-| Advanced features | 0 | 1 | 1 | 5 |
-| **Total** | **39** | **6** | **4** | **7** |
+| Advanced features | 0 | 3 | 1 | 4 |
+| **Total** | **39** | **8** | **4** | **6** |
 
 ## Expression syntax
 
@@ -65,7 +65,7 @@ Note: We also support `abs`, `round`, `ceil`, `floor` which are extensions beyon
 
 ### Partial
 
-* **Unit coverage**. GNU ships with approximately 3,600 named units covering SI, CGS, US customary, British Imperial, historical, chemical, astronomical, and esoteric units. We use the CLDR unit database via `Localize.Unit` as a foundation (~155 base unit types with full SI prefix support), augmented by the GNU Units importer which registers ~2,460 additional custom units and ~250 dimensionless constants as `let` bindings. Combined coverage is approximately 2,600 named units plus SI-prefixed variants. Most practical scientific, engineering, and everyday units are covered. Remaining gaps are primarily music notation units (wholenote-based), a handful of radioactivity units using the `event` primitive, and ~340 definitions whose resolution chains depend on unimplemented features (functions, the `+` operator in definitions).
+* **Unit coverage**. GNU ships with approximately 3,600 named units covering SI, CGS, US customary, British Imperial, historical, chemical, astronomical, and esoteric units. We use the CLDR unit database via `Localize.Unit` as a foundation (~155 base unit types with full SI prefix support), augmented by the GNU Units importer which registers ~2,440 additional custom units, ~250 dimensionless constants as `let` bindings, and ~75 nonlinear special conversions (decibel scales, temperature functions, wire gauges, density hydrometers, photographic exposure, atmospheric models, etc.). Combined coverage is approximately 2,760 named units plus SI-prefixed variants. Remaining gaps are primarily music notation units (wholenote-based), currency/inflation functions (require external data), piecewise interpolation tables (plate/standard gauges), and ~340 definitions whose resolution chains depend on unimplemented resolver features.
 
 * **SI prefixes on custom units**. SI prefixes (`milli-`, `kilo-`, `micro-`, etc.) and power prefixes (`square-`, `cubic-`, `pow4-`, etc.) are recognised on imported custom units. For example, after importing `lightsecond` from GNU definitions, `millilightsecond` and `kilolightsecond` work automatically.
 
@@ -159,15 +159,15 @@ Note: We also support `abs`, `round`, `ceil`, `floor` which are extensions beyon
 
 ### Partial
 
-* **Custom unit definition files**. GNU reads a comprehensive plain-text definitions file and supports user overrides via `~/.units` and `-f` flags. We support custom unit definition files in Elixir `.exs` format, loadable via `Localize.Unit.load_custom_units/1` or the `-f` CLI flag. The `Unity.GnuUnitsImporter` module can parse and convert the GNU definitions file, importing ~2,460 units and ~250 dimensionless constants. User-defined units can also be registered at runtime via `Localize.Unit.define_unit/2`.
+* **Custom unit definition files**. GNU reads a comprehensive plain-text definitions file and supports user overrides via `~/.units` and `-f` flags. We support custom unit definition files in Elixir `.exs` format, loadable via `Localize.Unit.load_custom_units/1` or the `-f` CLI flag. The `Unity.GnuUnitsImporter` module can parse and convert the GNU definitions file, importing ~2,440 units, ~250 dimensionless constants, and ~75 nonlinear conversions. User-defined units can also be registered at runtime via `Localize.Unit.define_unit/2`.
+
+* **Non-linear unit conversions**. GNU supports ~113 nonlinear conversion functions defined by forward/inverse expression pairs. We implement ~75 of these as `:special` custom units with registered forward/inverse Elixir functions, covering temperature scales (`tempc`, `tempf`, `tempreaumur`), decibel/logarithmic scales (`decibel`, `dBm`, `dBW`, `dBV`, `dBSPL`, `neper`, `bel`, etc.), density hydrometers (`baume`, `twaddell`, `quevenne`, `pH`, `apidegree`), wire/shotgun gauges (`wiregauge`/`awg`, `screwgauge`, `shotgungauge`), shoe and ring sizes, photographic exposure scales (`ev100`, APEX values), atmospheric models (`stdatm-t`, `stdatm-p`, `airmass`), astronomical magnitudes (`vmag`, surface brightness), gauge pressure, and geometry helpers. These work both as function calls (`tempc(100)` → `373.15 kelvin`) and as unit conversions (`100 tempc to fahrenheit`). Not implemented: currency/inflation (~5, require external data), piecewise interpolation tables (~2), sugar/food science (~4), and functions that depend on unresolved GNU definitions.
 
 ### Not implemented
 
-* **Non-linear unit conversions**. GNU supports arbitrary non-linear conversions defined by forward/inverse expression pairs (temperature scales, wire gauges, dB scales, etc.). We support temperature conversion via `Localize.Unit.convert/2` but do not support user-defined non-linear functions.
-
-* **Piecewise linear units**. GNU supports interpolated lookup tables for units like wire gauges.
-
 * **Currency conversion**. GNU includes currency exchange rates updated by an external script.
+
+* **Piecewise linear units**. GNU supports interpolated lookup tables for plate gauge and standard gauge.
 
 * **CGS unit systems**. GNU supports selecting between Gaussian, ESU, EMU, and Heaviside-Lorentz CGS systems via `--units`.
 
@@ -189,4 +189,4 @@ These features are present in our implementation but not in GNU `units`:
 
 * **`let` bindings**. Named variables with `let distance = 42.195 km` that persist across expressions within a session. The `bindings` REPL command displays all current variable bindings.
 
-* **GNU Units importer**. `Unity.GnuUnitsImporter.import/1` parses the GNU `units` definition file and registers ~2,460 custom units plus ~250 dimensionless constants as `let` bindings. Imported units support SI prefixes (`millilightsecond`, `kilofurlong`) and power prefixes (`square-smoot`). See the [Importing GNU Units Definitions](importing_gnu_units_definitions.md) guide for details.
+* **GNU Units importer**. `Unity.GnuUnitsImporter.import/1` parses the GNU `units` definition file and registers ~2,440 custom units, ~250 dimensionless constants as `let` bindings, and ~75 nonlinear conversion functions (temperature, decibel, gauges, density scales, photography, atmospheric, astronomy, etc.). Imported units support SI prefixes (`millilightsecond`, `kilofurlong`) and power prefixes (`square-smoot`). Nonlinear functions work both as function calls (`tempc(100)`) and as unit conversions (`100 tempc to fahrenheit`). See the [Importing GNU Units Definitions](importing_gnu_units_definitions.md) guide for details.

@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.4.0 (2026-04-13)
+
+### Enhancements
+
+* Added 75 nonlinear (`:special`) conversion functions covering temperature scales (`tempc`, `tempf`, `tempreaumur`), decibel/logarithmic scales (`decibel`, `dBm`, `dBW`, `dBV`, `dBSPL`, `neper`, `bel`, `musicalcent`, `bril`), density hydrometers (`baume`, `twaddell`, `quevenne`, `pH`, `apidegree`), wire/screw/shotgun gauges, shoe and ring sizes, photographic exposure (EV100, APEX values), atmospheric models, astronomical magnitudes, gauge pressure, and geometry/network helpers.
+
+* Special conversions work both as function calls (`tempc(100)` → `373.15 kelvin`) and as unit conversions (`100 tempc to fahrenheit` → `212 fahrenheit`).
+
+* Refactored Beaufort scale from hardcoded logic to the general `:special` conversion mechanism.
+
+* Total GNU Units coverage: ~2,440 linear units + 250 constants + 75 special conversions = ~2,760 used.
+
 ## v0.3.0 (2026-04-13)
 
 ### Bug Fixes

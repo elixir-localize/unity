@@ -601,6 +601,18 @@ defmodule Unity.Interpreter do
     {:error, "#{name} expects exactly 1 argument, got #{length(args)}"}
   end
 
+  # Special conversion function: tempC(100) → 373.15 kelvin
+  defp apply_function(name, [arg], environment) when is_number(arg) do
+    case Localize.Unit.CustomRegistry.get(name) do
+      %{factor: :special, forward: {mod, fun}, base_unit: base_unit} ->
+        result_value = apply(mod, fun, [arg])
+        {:ok, Localize.Unit.new!(result_value, base_unit), environment}
+
+      _ ->
+        {:error, "unknown function: #{inspect(name)}"}
+    end
+  end
+
   defp apply_function(name, _args, _environment) do
     {:error, "unknown function: #{inspect(name)}"}
   end
