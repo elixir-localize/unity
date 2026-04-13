@@ -8,7 +8,7 @@ defmodule Units.MixProject do
     [
       app: :units,
       version: @version,
-      elixir: "~> 1.19",
+      elixir: "~> 1.17",
       name: "Units",
       source_url: @source_url,
       docs: docs(),
