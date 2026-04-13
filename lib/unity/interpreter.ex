@@ -608,9 +608,9 @@ defmodule Unity.Interpreter do
   @scalar_functions_2 ~w(atan2 hypot gcd lcm min max mod)
 
   @all_functions Map.keys(@unit_functions) ++
-                  Map.keys(@dimensionless_functions) ++
-                  @scalar_functions_1 ++
-                  @scalar_functions_2
+                   Map.keys(@dimensionless_functions) ++
+                   @scalar_functions_1 ++
+                   @scalar_functions_2
 
   defp apply_function(name, [%Localize.Unit{} = unit], environment)
        when is_map_key(@unit_functions, name) do
@@ -792,7 +792,11 @@ defmodule Unity.Interpreter do
     {:ok, base * (1 - pct / 100), environment}
   end
 
-  defp apply_function("percentage_change", [%Localize.Unit{} = from, %Localize.Unit{} = to], environment) do
+  defp apply_function(
+         "percentage_change",
+         [%Localize.Unit{} = from, %Localize.Unit{} = to],
+         environment
+       ) do
     case Localize.Unit.convert(to, from.name) do
       {:ok, converted} ->
         pct = (converted.value - from.value) / from.value * 100
