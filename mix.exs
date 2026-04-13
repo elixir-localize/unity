@@ -2,7 +2,7 @@ defmodule Unity.MixProject do
   use Mix.Project
 
   @version "0.1.0"
-  @source_url "https://github.com/elixir-localize/units"
+  @source_url "https://github.com/elixir-localize/unity"
 
   def project do
     [
@@ -40,9 +40,17 @@ defmodule Unity.MixProject do
   defp package do
     [
       licenses: ["Apache-2.0"],
-      links: %{"GitHub" => @source_url},
+      links: linke(),
       files: ~w(lib priv .formatter.exs mix.exs README.md CHANGELOG.md LICENSE.md)
     ]
+  end
+
+  def links do
+    %{
+      "GitHub" => "https://github.com/elixir-localize/unity",
+      "Readme" => "https://github.com/elixir-localize/unity/blob/v#{@version}/README.md",
+      "Changelog" => "https://github.com/elixir-localize/unity/blob/v#{@version}/CHANGELOG.md"
+    }
   end
 
   defp docs do
