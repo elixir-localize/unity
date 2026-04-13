@@ -9,10 +9,14 @@ defmodule Unity.Conversion.Atmospheric do
   """
 
   # Standard atmosphere constants
-  @stdatm_t0 288.15       # K (sea-level temperature)
-  @lapserate 0.0065       # K/m (temperature lapse rate)
-  @atm 101_325.0          # Pa (standard atmospheric pressure)
-  @earth_rad 6_356_766.0  # m (Earth radius for US standard atmosphere)
+  # K (sea-level temperature)
+  @stdatm_t0 288.15
+  # K/m (temperature lapse rate)
+  @lapserate 0.0065
+  # Pa (standard atmospheric pressure)
+  @atm 101_325.0
+  # m (Earth radius for US standard atmosphere)
+  @earth_rad 6_356_766.0
 
   # g/R ratio used in barometric formula: g₀·M/(R·L)
   # polyndx = g/(lapserate R_air) - 1 ≈ 4.2559
@@ -90,7 +94,12 @@ defmodule Unity.Conversion.Atmospheric do
   @doc "Latitude (degrees) to effective Earth radius (m)."
   def earthradius_eff_forward(lat_deg) do
     lat = lat_deg * :math.pi() / 180
-    numerator = 2 * 9.780356 * (1 + 0.0052885 * :math.pow(:math.sin(lat), 2) - 0.0000059 * :math.pow(:math.sin(2 * lat), 2))
+
+    numerator =
+      2 * 9.780356 *
+        (1 + 0.0052885 * :math.pow(:math.sin(lat), 2) -
+           0.0000059 * :math.pow(:math.sin(2 * lat), 2))
+
     denominator = 3.085462e-6 + 2.27e-9 * :math.cos(2 * lat) - 2.0e-12 * :math.cos(4 * lat)
     numerator / denominator
   end

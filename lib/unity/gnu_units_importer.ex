@@ -89,7 +89,8 @@ defmodule Unity.GnuUnitsImporter do
       {"tempf", "kelvin", "temperature", @temp, :fahrenheit_forward, :fahrenheit_inverse},
       {"tempreaumur", "kelvin", "temperature", @temp, :reaumur_forward, :reaumur_inverse},
       {"tempcelsius", "kelvin", "temperature", @temp, :celsius_forward, :celsius_inverse},
-      {"tempfahrenheit", "kelvin", "temperature", @temp, :fahrenheit_forward, :fahrenheit_inverse},
+      {"tempfahrenheit", "kelvin", "temperature", @temp, :fahrenheit_forward,
+       :fahrenheit_inverse},
 
       # ── Decibel / logarithmic ──
       {"decibel", "part", "concentr", @db, :decibel_forward, :decibel_inverse},
@@ -133,9 +134,11 @@ defmodule Unity.GnuUnitsImporter do
 
       # ── Sizing ──
       {"shoesize-men", "meter", "length", @size, :shoesize_men_forward, :shoesize_men_inverse},
-      {"shoesize-women", "meter", "length", @size, :shoesize_women_forward, :shoesize_women_inverse},
+      {"shoesize-women", "meter", "length", @size, :shoesize_women_forward,
+       :shoesize_women_inverse},
       {"shoesize-boys", "meter", "length", @size, :shoesize_boys_forward, :shoesize_boys_inverse},
-      {"shoesize-girls", "meter", "length", @size, :shoesize_girls_forward, :shoesize_girls_inverse},
+      {"shoesize-girls", "meter", "length", @size, :shoesize_girls_forward,
+       :shoesize_girls_inverse},
       {"ringsize", "meter", "length", @size, :ringsize_forward, :ringsize_inverse},
       {"jpringsize", "meter", "length", @size, :jpringsize_forward, :jpringsize_inverse},
       {"euringsize", "meter", "length", @size, :euringsize_forward, :euringsize_inverse},
@@ -159,7 +162,8 @@ defmodule Unity.GnuUnitsImporter do
       {"stdatm-ph", @pascal_base, "pressure", @atmo, :stdatm_ph_forward, :stdatm_ph_inverse},
       {"stdatm-p", @pascal_base, "pressure", @atmo, :stdatm_p_forward, :stdatm_p_inverse},
       {"geopotential", "meter", "length", @atmo, :geopotential_forward, :geopotential_inverse},
-      {"gaugepressure", @pascal_base, "pressure", @atmo, :gaugepressure_forward, :gaugepressure_inverse},
+      {"gaugepressure", @pascal_base, "pressure", @atmo, :gaugepressure_forward,
+       :gaugepressure_inverse},
       {"psig", @pascal_base, "pressure", @atmo, :psig_forward, :psig_inverse},
       {"airmass", "part", "concentr", @atmo, :airmass_forward, :airmass_inverse},
       {"airmassz", "part", "concentr", @atmo, :airmassz_forward, :airmassz_inverse},
@@ -173,9 +177,12 @@ defmodule Unity.GnuUnitsImporter do
 
       # ── Geometry / network / misc ──
       {"circlearea", "square-meter", "area", @misc, :circlearea_forward, :circlearea_inverse},
-      {"spherevolume", "cubic-meter", "volume", @misc, :spherevolume_forward, :spherevolume_inverse},
-      {"ipv4subnetsize", "part", "concentr", @misc, :ipv4subnetsize_forward, :ipv4subnetsize_inverse},
-      {"ipv6subnetsize", "part", "concentr", @misc, :ipv6subnetsize_forward, :ipv6subnetsize_inverse}
+      {"spherevolume", "cubic-meter", "volume", @misc, :spherevolume_forward,
+       :spherevolume_inverse},
+      {"ipv4subnetsize", "part", "concentr", @misc, :ipv4subnetsize_forward,
+       :ipv4subnetsize_inverse},
+      {"ipv6subnetsize", "part", "concentr", @misc, :ipv6subnetsize_forward,
+       :ipv6subnetsize_inverse}
     ]
 
     Enum.each(special_units, fn {name, base_unit, category, module, fwd, inv} ->
