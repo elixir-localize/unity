@@ -239,6 +239,12 @@ Over 150 common abbreviations are supported, including:
 
 All CLDR unit names (meter, kilogram, second, etc.) and SI-prefixed forms (kilometer, milligram, gigahertz, etc.) are accepted directly.
 
+## Importing Gnu Units unit definitions
+
+Its possible to directly import many - but not all - of the unit definitions from Gnu Units. A copy of the data is included in the library package but you can specify other locations at import time.  Importing Gnu Unit definitions converts the data into `Localize.Unit` custom units. Only linear units can be imoprts (those of the form `ax + b`
+
+See [Unity.GnuUnitsImporter](https://hexdocs.pm/unity/Unity.GnuUnitsImporter.html) for more information.
+
 ## License
 
 Apache-2.0

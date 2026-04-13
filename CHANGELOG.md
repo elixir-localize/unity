@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.1.0 (2026-04-13)
+
+### Bug Fixes
+
+* Fixes terminal handling (backspace, history) when the REPL is started with `mix run -e "Unity.Repl.start()"`.
+
 ## v0.1.0 (2026-04-11)
 
 Initial release.
