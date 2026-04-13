@@ -1,21 +1,31 @@
 # Unity
 
-An Elixir unit conversion calculator inspired by the Unix `units` utility. Uses [Localize](https://github.com/elixir-localize/localize) as the primary engine for unit creation, conversion, arithmetic, and localized output.
+An Elixir unit conversion calculator inspired by the Unix [`units`](https://www.gnu.org/software/units/) utility. Powered by [Localize](https://github.com/elixir-localize/localize) for unit conversion, arithmetic, and locale-aware output in 500+ locales.
 
-## Features
+## Quick taste
 
-* Parse and evaluate unit expressions: `3 meters to feet`, `60 mph to km/h`.
-* Arithmetic on units: `12 ft + 3 in`, `100 kg * 9.8 m/s^2`.
-* Built-in functions: `sqrt`, `cbrt`, `abs`, `round`, `ceil`, `floor`, trig, logarithms.
-* Juxtaposition multiplication: `kg m / s^2` = `(kg * m) / s^2`, matching GNU `units` precedence.
-* Rational numbers: `1|3 cup to mL`.
-* Concatenated exponents: `cm3` = `cm^3`.
-* Measurement system conversion: `100 meter to us`, `100 fahrenheit to metric`, `to preferred`, `to imperial`, `to SI`.
-* Variables: `let distance = 42.195 km`, then reuse `distance / time`.
-* Mixed-unit display: `3.756 hours to h;min;s` → `3 hours, 45 minutes, 21.6 seconds`.
-* Locale-aware output: number and unit formatting via `Localize`.
-* Interactive REPL with `_` (previous result), `help`, `list`, `info`, `conformable`, and `locale` commands.
-* CLI for single-expression evaluation, piping, and scripting.
+```
+> 3 meters to feet
+9.84252 feet
+
+> 100 kg * 9.8 m/s^2
+980 kilogram-meter-per-square-second
+
+> 1|3 cup to mL
+78.862746 milliliters
+
+> 3.756 hours to h;min;s
+3 hours, 45 minutes, 21.6 seconds
+
+> sqrt(9 m^2)
+3 meters
+
+> locale de
+Locale set to :de
+
+> 1234,5 meter to kilometer
+1,2345 Kilometer
+```
 
 ## Installation
 
@@ -24,246 +34,63 @@ Add `unity` to your list of dependencies in `mix.exs`:
 ```elixir
 def deps do
   [
-    {:unity, "~> 0.1.0"}
+    {:unity, "~> 0.5"}
   ]
 end
 ```
 
-## Library usage
+## Three ways to use it
+
+**As a library** — embed unit evaluation in any Elixir application:
 
 ```elixir
 iex> {:ok, result, _env} = Unity.eval("3 meters to feet")
 iex> result.value
 9.84251968503937
-
-iex> Unity.format!(Unity.eval!("60 mph to km/h"))
-"96.56064 kilometers per hour"
-
-iex> Unity.format!(Unity.eval!("100 celsius to fahrenheit"))
-"212 degrees Fahrenheit"
-
-iex> {:ok, result, _env} = Unity.eval("3.756 hours to h;min;s")
-iex> Unity.format!(result)
-"3 hours, 45 minutes, 21.6 seconds"
 ```
 
-### Variables
-
-```elixir
-iex> {:ok, _, env} = Unity.eval("let distance = 42.195 km")
-iex> {:ok, _, env} = Unity.eval("let time = 2 hours", env)
-iex> {:ok, result, _} = Unity.eval("distance / time", env)
-iex> result.name
-"kilometer-per-hour"
-```
-
-### Measurement system conversion
-
-```elixir
-iex> Unity.format!(Unity.eval!("100 meter to us"))
-"0.062137 miles"
-
-iex> Unity.format!(Unity.eval!("100 fahrenheit to metric"))
-"37.777778 degrees Celsius"
-
-iex> Unity.format!(Unity.eval!("100 meter to imperial"))
-"0.062137 miles"
-
-# "preferred" uses the current locale's measurement system
-iex> Localize.put_locale(:de)
-iex> Unity.format!(Unity.eval!("100 fahrenheit to preferred"))
-"37,777778 Grad Celsius"
-```
-
-### Locale-aware output
-
-```elixir
-iex> result = Unity.eval!("1234.5 meter to kilometer")
-iex> Unity.format!(result, locale: :de)
-"1,2345 Kilometer"
-iex> Unity.format!(result, locale: :ja)
-"1.2345 キロメートル"
-```
-
-## Interactive REPL
-
-```
-$ mix run -e "Unity.Repl.start()"
-Unity v0.1.0 — type "help" for commands, "quit" to exit
-
-> 3 meters to feet
-9.84252 feet
-
-> 60 mph to km/h
-96.56064 kilometers per hour
-
-> 100 kg * 9.8 m/s^2
-980 kilogram-meter-per-square-second
-
-> 1 gallon to liters
-3.785412 liters
-
-> 12 ft + 3 in to ft
-12.25 feet
-
-> sqrt(9 m^2)
-3 meters
-
-> _ to cm
-300 centimeters
-
-> 1|3 cup to mL
-78.862746 milliliters
-
-> 3.756 hours to h;min;s
-3 hours, 45 minutes, 21.6 seconds
-
-> let distance = 42.195 km
-42.195 kilometers
-
-> let time = 2 hours
-2 hours
-
-> distance / time
-21.0975 kilometers per hour
-
-> locale de
-Locale set to :de
-
-> 1234.5 meter to kilometer
-1,2345 Kilometer
-```
-
-## CLI (escript)
-
-Build and install the escript:
+**As a REPL** — interactive calculator with tab completion and history:
 
 ```bash
-mix escript.build
+$ iex -S mix
+iex> Unity.Repl.start()
 ```
 
-Usage:
+**As a CLI** — single-expression evaluation and scripting:
 
 ```bash
-# Interactive mode
-./unity
-
-# Single conversion
-./unity "3 meters to feet"
-
-# Two-argument conversion (GNU units style)
-./unity "3 meters" "feet"
-
-# Verbose mode
-./unity -v "1 gallon" "liters"
-
-# Terse mode (for scripts)
-./unity -t "100 celsius" "fahrenheit"
-
-# Locale-aware output
-./unity --locale de "1234.5 meter to kilometer"
-
-# Read from stdin
-echo "3 meters" | ./unity - feet
-
-# Pipe-friendly
-echo "3 meters to feet" | ./unity
-
-# List unit categories
-./unity --list
-
-# List units in a category
-./unity --list length
-
-# List conformable units
-./unity --conformable meter
+$ mix escript.build
+$ ./unity "3 meters to feet"
+$ ./unity -v "1 gallon" "liters"
+$ echo "100 celsius to fahrenheit" | ./unity
 ```
 
-## Expression syntax
+## What's included
 
-| Syntax | Example | Description |
-|---|---|---|
-| Conversion | `3 meters to feet`, `3 m -> cm`, `3 m in cm` | Convert between units |
-| Addition | `12 ft + 3 in` | Add compatible units |
-| Subtraction | `10 km - 3 km` | Subtract compatible units |
-| Multiplication | `100 kg * 9.8 m` | Multiply units or values |
-| Division | `100 m / 10 s`, `5 miles per hour` | Divide units, `per` = `/` |
-| Exponentiation | `m^2`, `s^-2`, `cm3` | Powers and concatenated exponents |
-| Juxtaposition | `kg m / s^2` | Space = implicit `*`, higher precedence than `/` |
-| Parentheses | `(3 + 4) m` | Grouping |
-| Functions | `sqrt(9 m^2)`, `abs(-5 m)` | Built-in math functions |
-| Rationals | `1\|3 cup` | Rational numbers (GNU `units` style) |
-| Variables | `let x = 42 km` | Variable binding |
-| Previous result | `_`, `_ to cm` | Refer to last REPL result |
-| System target | `to metric`, `to us`, `to imperial`, `to SI` | Convert to measurement system |
-| Preferred | `to preferred` | Convert to locale's preferred system |
-| Mixed-unit | `3.756 hours to h;min;s` | Decompose into multiple units |
+* 155 CLDR base units with full SI prefix support (thousands of prefixed variants).
+* ~2,440 additional units imported from GNU Units (furlong, fathom, smoot, lightsecond, ...).
+* ~75 nonlinear conversions (decibel scales, temperature functions, wire gauges, density hydrometers, photographic exposure, atmospheric models, astronomical magnitudes).
+* ~250 dimensionless constants (dozen, gross, avogadro, speed of light, ...).
+* 36 built-in math functions including trig, hyperbolic, logarithmic, factorial, gcd/lcm.
+* Date/time arithmetic, percentage calculations, unit introspection, and assertions.
+* Locale-aware output in 500+ locales via CLDR.
 
-## Operator precedence (highest to lowest)
-
-| Precedence | Operators | Description |
-|---|---|---|
-| 1 | `^`, concatenated exponent | `cm^3`, `m2` |
-| 2 | juxtaposition (space) | `kg m` = `kg * m` |
-| 3 | `*`, `/`, `per` | Explicit multiply/divide |
-| 4 | `+`, `-` | Add/subtract (conformable units only) |
-| 5 | `to`, `in`, `->` | Conversion (outermost) |
-
-## Supported unit aliases
-
-Over 150 common abbreviations are supported, including:
-
-* **Length:** m, km, cm, mm, ft, in, yd, mi, nmi, ly
-
-* **Mass:** g, kg, mg, lb, oz, t, st
-
-* **Time:** s, ms, min, h, d, wk, yr
-
-* **Temperature:** °C, °F, K, celsius, fahrenheit, kelvin
-
-* **Speed:** mph, kph, mps, kn
-
-* **Volume:** L, mL, gal, qt, pt, cup, tbsp, tsp, floz
-
-* **Energy:** J, kJ, cal, kcal, kWh, eV, BTU
-
-* **Power:** W, kW, MW, hp
-
-* **Pressure:** Pa, kPa, atm, psi
-
-* **Frequency:** Hz, kHz, MHz, GHz
-
-* **Force:** N, kN, lbf
-
-* **And more:** area, angle, digital, electric, light, radiation units
-
-All CLDR unit names (meter, kilogram, second, etc.) and SI-prefixed forms (kilometer, milligram, gigahertz, etc.) are accepted directly.
-
-## Importing Gnu Units unit definitions
-
-Its possible to directly import many - but not all - of the unit definitions from Gnu Units. A copy of the data is included in the library package but you can specify other locations at import time.  Importing Gnu Unit definitions converts the data into `Localize.Unit` custom units. Only linear units can be imoprts (those of the form `ax + b`
-
-See [Unity.GnuUnitsImporter](https://hexdocs.pm/unity/Unity.GnuUnitsImporter.html) for more information.
+See the [Exploring Unity](https://hexdocs.pm/unity/exploring_unity.html) guide for a detailed walkthrough with examples, or the [GNU Units Conformance](https://hexdocs.pm/unity/conformance.html) guide for a feature-by-feature comparison.
 
 ## A fun example from history
 
-See https://www.ibiblio.org/harris/500milemail.html.  Here's our implementation:
+See https://www.ibiblio.org/harris/500milemail.html.
 
-```elixir
-$ iex -S mix
-iex(1)> Unity.GnuUnitsImporter.import()
-iex(2)> Unity.Repl.start()
-Unity v0.2.0 — type "help" for commands, "quit" to exit
-
+```
 > 3 millilightsecond to mile
 558.847191 miles
 ```
 
 ## References
 
-* [units](https://www.gnu.org/software/units/), the inspiration for `Unity`.
-
-* [Numbat](https://github.com/sharkdp/numbat) s a statically typed programming language for scientific computations with first class support for physical dimensions and units.
+* [GNU units](https://www.gnu.org/software/units/) — the inspiration for Unity.
+* [Numbat](https://github.com/sharkdp/numbat) — a statically typed programming language for scientific computations with first-class physical units.
+* [Localize](https://github.com/elixir-localize/localize) — CLDR-based internationalization for Elixir (powers Unity's unit engine).
 
 ## License
 

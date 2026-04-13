@@ -18,6 +18,10 @@
 
 * `assert_eq(a, b)` and `assert_eq(a, b, tolerance)` for verifying unit equivalences with automatic conversion and optional tolerance.
 
+* Introspection functions: `unit_of(expr)`, `value_of(expr)`, `is_dimensionless(expr)`.
+
+* Percentage functions: `increase_by(val, pct)`, `decrease_by(val, pct)`, `percentage_change(from, to)`. Work on both plain numbers and units.
+
 * Variables with trailing digits (e.g., `t1`) now resolve correctly from the environment before falling back to concatenated-exponent parsing.
 
 ## v0.4.0 (2026-04-13)

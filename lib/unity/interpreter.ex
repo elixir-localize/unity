@@ -8,6 +8,12 @@ defmodule Unity.Interpreter do
 
   """
 
+  # Dialyzer cannot trace DateTime through the generic eval/2 return type,
+  # so the DateTime arithmetic clauses appear unreachable to static analysis.
+  @dialyzer {:nowarn_function, add_values: 3}
+  @dialyzer {:nowarn_function, sub_values: 3}
+  @dialyzer {:nowarn_function, to_seconds: 1}
+
   @type env :: %{String.t() => Localize.Unit.t() | number()}
   @type result :: Localize.Unit.t() | number() | {:decomposed, [Localize.Unit.t()]}
 

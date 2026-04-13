@@ -1,7 +1,7 @@
 defmodule Unity.MixProject do
   use Mix.Project
 
-  @version "0.4.0"
+  @version "0.5.0"
   @source_url "https://github.com/elixir-localize/unity"
 
   def project do
@@ -60,6 +60,7 @@ defmodule Unity.MixProject do
       extras: [
         "README.md",
         "CHANGELOG.md",
+        "guides/exploring_unity.md",
         "guides/conformance.md",
         "guides/importing_gnu_units_definitions.md"
       ],
@@ -70,7 +71,7 @@ defmodule Unity.MixProject do
 
   defp deps do
     [
-      {:localize, path: "../localize"},
+      {:localize, "~> 0.6"},
       {:nimble_parsec, "~> 1.0"},
       {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},
       {:ex_doc, "~> 0.34", only: :release, runtime: false}
