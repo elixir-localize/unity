@@ -259,8 +259,6 @@ defmodule Unity.Repl do
 
   # ── History ──
 
-  defp resolve_history_path(nil), do: nil
-
   defp resolve_history_path(path) do
     path
     |> String.replace_leading("~", System.user_home!())
