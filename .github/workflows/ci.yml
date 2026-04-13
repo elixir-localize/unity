@@ -9,6 +9,7 @@ on:
 env:
   MIX_ENV: test
   LOCALIZE_DEFAULT_LOCALE: en
+  ERL_FLAGS: "+MLsbc 4096"
 
 permissions:
   contents: read
