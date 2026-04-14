@@ -89,6 +89,8 @@ defmodule Unity.Repl.Color do
   end
 
   # Tokenize the formatted output and color number tokens vs unit tokens.
+  # Numbers are bright cyan; units are green — both high-contrast on dark
+  # terminal backgrounds and distinct from each other without being harsh.
   defp do_colorize(text) do
     # Match a leading number (with optional sign, decimals, exponent, and digit separators)
     # followed by optional unit text.
@@ -96,7 +98,7 @@ defmodule Unity.Repl.Color do
       ~r/^([\-+]?[\d.,_]+(?:[eE][\-+]?\d+)?)(\s+)(.+)$/,
       text,
       fn _full, num, sep, rest ->
-        bright_cyan(num) <> sep <> dim(rest)
+        bright_cyan(num) <> sep <> green(rest)
       end
     )
   end
