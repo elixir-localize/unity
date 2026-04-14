@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.6.0 (2026-04-14)
+
+### Enhancements
+
+* Add (optional) dependency [marcli](https://hex.pm/packages/marcli) to support CLI coloring.
+
 ## v0.5.0 (2026-04-13)
 
 ### Enhancements
