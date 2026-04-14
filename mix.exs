@@ -71,7 +71,7 @@ defmodule Unity.MixProject do
 
   defp deps do
     [
-      {:localize, "~> 0.6"},
+      {:localize, "~> 0.9"},
       {:marcli, "~> 0.3", optional: true},
       {:nimble_parsec, "~> 1.0"},
       {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},
