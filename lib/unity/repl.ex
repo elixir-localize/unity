@@ -348,6 +348,7 @@ defmodule Unity.Repl do
 
   defp list_units("") do
     categories = Localize.Unit.known_categories() |> Enum.sort()
+
     md = """
     **Unit categories:** #{Enum.map_join(categories, ", ", &"`#{&1}`")}
 
@@ -362,7 +363,9 @@ defmodule Unity.Repl do
 
     case Map.get(by_category, category) do
       nil ->
-        IO.puts(Unity.Repl.Color.error(Unity.Error.format("unknown category: #{inspect(category)}")))
+        IO.puts(
+          Unity.Repl.Color.error(Unity.Error.format("unknown category: #{inspect(category)}"))
+        )
 
       units ->
         units_str = units |> Enum.sort() |> Enum.map_join(", ", &"`#{&1}`")
