@@ -91,11 +91,20 @@ defmodule Unity.Repl.Color do
   # Tokenize the formatted output and color number tokens vs unit tokens.
   # Numbers are bright cyan; units are green — both high-contrast on dark
   # terminal backgrounds and distinct from each other without being harsh.
+  #
+  # CLDR number formatting uses different Unicode characters depending
+  # on role, and we must keep them apart:
+  #
+  #   * Inside a number (thousands separator, French): U+202F NARROW
+  #     NO-BREAK SPACE. Allowed in the number character class.
+  #   * Between number and unit (German, French): U+00A0 NO-BREAK SPACE.
+  #     NOT allowed in the number class — must only appear as the
+  #     separator, otherwise the greedy number match swallows it.
+  #   * ASCII digits, `.`, `,`, `_`, and NNBSP in the number.
+  #   * Any of ASCII whitespace, NBSP, or NNBSP as the unit separator.
   defp do_colorize(text) do
-    # Match a leading number (with optional sign, decimals, exponent, and digit separators)
-    # followed by optional unit text.
     Regex.replace(
-      ~r/^([\-+]?[\d.,_]+(?:[eE][\-+]?\d+)?)(\s+)(.+)$/,
+      ~r/^([\-+]?[\d.,_\x{202F}]+(?:[eE][\-+]?\d+)?)([\s\x{00A0}\x{202F}]+)(.+)$/u,
       text,
       fn _full, num, sep, rest ->
         bright_cyan(num) <> sep <> green(rest)
