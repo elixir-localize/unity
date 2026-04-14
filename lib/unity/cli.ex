@@ -51,6 +51,7 @@ defmodule Unity.CLI do
           strict: :boolean,
           exponential: :boolean,
           one_line: :boolean,
+          no_color: :boolean,
           locale: :string,
           digits: :integer,
           output_format: :string,
@@ -64,6 +65,9 @@ defmodule Unity.CLI do
 
     # Load custom unit files before any evaluation
     load_custom_unit_files(options)
+
+    # Configure color output
+    if options[:no_color], do: Application.put_env(:unity, :no_color, true)
 
     cond do
       options[:version] ->
@@ -263,6 +267,7 @@ defmodule Unity.CLI do
       -e, --exponential      Scientific notation output
       -o, --output-format <fmt>  Printf-style format (e.g., "%.8g")
       -f, --file <path>      Load custom unit definitions (.exs file)
+      --no-color             Disable ANSI color output (also: NO_COLOR env var)
       --locale <id>          Set formatting locale
       --conformable <unit>   List conformable units
       --list [category]      List known units or categories

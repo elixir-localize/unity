@@ -89,7 +89,8 @@ defmodule Unity.Repl do
     end
 
     unless quiet do
-      IO.puts("Unity v#{@version} — type \"help\" for commands, \"quit\" to exit\n")
+      banner = "**Unity v#{@version}** — type `help` for commands, `quit` to exit"
+      IO.puts(Unity.Repl.Markdown.render(banner))
     end
 
     loop(%{})
@@ -180,10 +181,10 @@ defmodule Unity.Repl do
 
     case Localize.put_locale(locale_id) do
       {:ok, _} ->
-        IO.puts("Locale set to :#{locale_id}")
+        IO.puts(Unity.Repl.Color.info("locale set to :#{locale_id}"))
 
       {:error, exception} ->
-        IO.puts(Unity.Error.format(Exception.message(exception)))
+        IO.puts(Unity.Repl.Color.error(Unity.Error.format(Exception.message(exception))))
     end
 
     {:continue, environment}
@@ -197,10 +198,10 @@ defmodule Unity.Repl do
       {:ok, result, environment} ->
         case Unity.Formatter.format(result) do
           {:ok, formatted} ->
-            IO.puts(formatted)
+            IO.puts(Unity.Repl.Color.colorize_result(formatted))
 
           {:error, reason} ->
-            IO.puts(Unity.Error.format(reason))
+            IO.puts(Unity.Repl.Color.error(Unity.Error.format(reason)))
         end
 
         # Store the result as "_" so it can be referenced in subsequent expressions.
@@ -215,7 +216,7 @@ defmodule Unity.Repl do
         {:continue, environment}
 
       {:error, message} ->
-        IO.puts(Unity.Error.format(message))
+        IO.puts(Unity.Repl.Color.error(Unity.Error.format(message)))
         {:continue, environment}
     end
   end
@@ -249,16 +250,16 @@ defmodule Unity.Repl do
 
     case all_matches do
       [] ->
-        IO.puts("No units matching #{inspect(query)}")
+        IO.puts(Unity.Repl.Color.dim("No units matching #{inspect(query)}"))
 
       matches ->
-        lines =
-          Enum.map(matches, fn
-            {name, cldr} when name == cldr -> name
-            {name, cldr} -> "#{name} (#{cldr})"
+        items =
+          Enum.map_join(matches, ", ", fn
+            {name, cldr} when name == cldr -> "`#{name}`"
+            {name, cldr} -> "`#{name}` *(#{cldr})*"
           end)
 
-        IO.puts(Enum.join(lines, ", "))
+        IO.puts(Unity.Repl.Markdown.render(items))
     end
   end
 
@@ -273,64 +274,87 @@ defmodule Unity.Repl do
   # ── Bindings ──
 
   defp show_bindings(environment) when map_size(environment) == 0 do
-    IO.puts("No bindings set.")
+    IO.puts(Unity.Repl.Color.dim("No bindings set."))
   end
 
   defp show_bindings(environment) do
-    environment
-    |> Enum.sort_by(fn {name, _} -> name end)
-    |> Enum.each(fn {name, value} ->
-      formatted =
-        case Unity.Formatter.format(value) do
-          {:ok, str} -> str
-          {:error, _} -> inspect(value)
-        end
+    rows =
+      environment
+      |> Enum.sort_by(fn {name, _} -> name end)
+      |> Enum.map_join("\n", fn {name, value} ->
+        formatted =
+          case Unity.Formatter.format(value) do
+            {:ok, str} -> str
+            {:error, _} -> inspect(value)
+          end
 
-      IO.puts("  #{name} = #{formatted}")
-    end)
+        "| `#{name}` | #{formatted} |"
+      end)
+
+    md = """
+    | Name | Value |
+    |---|---|
+    #{rows}
+    """
+
+    IO.puts(Unity.Repl.Markdown.render(md))
   end
 
   # ── Help ──
 
+  @help_md """
+  ## Expression syntax
+
+  | Syntax | Description |
+  |---|---|
+  | `3 meters to feet` | Convert between units |
+  | `60 mph + 10 km/h` | Add compatible units |
+  | `100 kg * 9.8 m/s^2` | Multiply units (also `**`) |
+  | `1\\|3 cup` | Rational numbers |
+  | `0xFF`, `0o77`, `0b1010` | Hex, octal, binary literals |
+  | `1_000_000` | Underscore digit separators |
+  | `let x = 42 km` | Variable binding |
+  | `_`, `_ to feet` | Previous result |
+
+  ## Functions
+
+  - **Unit:** `sqrt`, `cbrt`, `abs`, `round`, `ceil`, `floor`
+  - **Trig:** `sin`, `cos`, `tan`, `asin`, `acos`, `atan`
+  - **Hyperbolic:** `sinh`, `cosh`, `tanh`, `asinh`, `acosh`, `atanh`
+  - **Log:** `ln`, `log`, `log2`, `exp`, `factorial`, `gamma`
+  - **Two-arg:** `atan2`, `hypot`, `gcd`, `lcm`, `min`, `max`, `mod`
+  - **Date/time:** `now()`, `today()`, `datetime("...")`, `unixtime(n)`, `timestamp(dt)`
+  - **Introspection:** `unit_of(expr)`, `value_of(expr)`, `is_dimensionless(expr)`
+  - **Percentages:** `increase_by(val, pct)`, `decrease_by(val, pct)`, `percentage_change(a, b)`
+  - **Assertions:** `assert_eq(a, b)`, `assert_eq(a, b, tolerance)`
+
+  ## Commands
+
+  | Command | Description |
+  |---|---|
+  | `help` | Show this help |
+  | `bindings` | Show current variable bindings |
+  | `list [category]` | List known units |
+  | `search <text>` | Search unit names containing `<text>` |
+  | `conformable <unit>` | List units convertible with `<unit>` |
+  | `info <unit>` | Show unit information |
+  | `locale <id>` | Change display locale (e.g. `locale de`) |
+  | `quit` / `exit` | Exit the REPL |
+  """
+
   defp print_help do
-    IO.puts("""
-    Expression syntax:
-      3 meters to feet       Convert between units
-      60 mph + 10 km/h       Add compatible units
-      100 kg * 9.8 m/s^2    Multiply units (also: **)
-      1|3 cup                Rational numbers
-      0xFF, 0o77, 0b1010     Hex, octal, binary literals
-      1_000_000              Underscore digit separators
-      let x = 42 km          Variable binding
-      _                      Previous result
-      _ to feet              Convert previous result
-
-    Functions:
-      sqrt, cbrt, abs, round, ceil, floor
-      sin, cos, tan, asin, acos, atan, sinh, cosh, tanh, asinh, acosh, atanh
-      ln, log, log2, exp, factorial, gamma
-      atan2, hypot, gcd, lcm, min, max, mod
-      now(), today(), datetime("..."), unixtime(n), timestamp(dt)
-      unit_of(expr), value_of(expr), is_dimensionless(expr)
-      increase_by(val, pct), decrease_by(val, pct), percentage_change(a, b)
-      assert_eq(a, b), assert_eq(a, b, tolerance)
-
-    Commands:
-      help                   Show this help
-      bindings               Show current variable bindings
-      list [category]        List known units
-      search <text>          Search unit names containing <text>
-      conformable <unit>     List units convertible with <unit>
-      info <unit>            Show unit information
-      locale <id>            Change display locale (e.g., locale de)
-      quit / exit            Exit the REPL
-    """)
+    IO.puts(Unity.Repl.Markdown.render(@help_md))
   end
 
   defp list_units("") do
     categories = Localize.Unit.known_categories() |> Enum.sort()
-    IO.puts("Unit categories: #{Enum.join(categories, ", ")}")
-    IO.puts("Use \"list <category>\" to see units in a category.")
+    md = """
+    **Unit categories:** #{Enum.map_join(categories, ", ", &"`#{&1}`")}
+
+    Use `list <category>` to see units in a category.
+    """
+
+    IO.puts(Unity.Repl.Markdown.render(md))
   end
 
   defp list_units(category) do
@@ -338,10 +362,11 @@ defmodule Unity.Repl do
 
     case Map.get(by_category, category) do
       nil ->
-        IO.puts(Unity.Error.format("unknown category: #{inspect(category)}"))
+        IO.puts(Unity.Repl.Color.error(Unity.Error.format("unknown category: #{inspect(category)}")))
 
       units ->
-        IO.puts("#{category}: #{Enum.sort(units) |> Enum.join(", ")}")
+        units_str = units |> Enum.sort() |> Enum.map_join(", ", &"`#{&1}`")
+        IO.puts(Unity.Repl.Markdown.render("**#{category}:** #{units_str}"))
     end
   end
 
@@ -352,10 +377,11 @@ defmodule Unity.Repl do
           {:ok, category} ->
             by_category = Localize.Unit.known_units_by_category()
             units = Map.get(by_category, category, [])
-            IO.puts(Enum.sort(units) |> Enum.join(", "))
+            md = units |> Enum.sort() |> Enum.map_join(", ", &"`#{&1}`")
+            IO.puts(Unity.Repl.Markdown.render(md))
 
           {:error, exception} ->
-            IO.puts(Unity.Error.format(Exception.message(exception)))
+            IO.puts(Unity.Repl.Color.error(Unity.Error.format(Exception.message(exception))))
         end
 
       {:error, :unknown_unit} ->
@@ -370,7 +396,7 @@ defmodule Unity.Repl do
               "unknown unit: #{inspect(name)}\n  Did you mean: #{Enum.map_join(suggestions, ", ", &elem(&1, 0))}?"
           end
 
-        IO.puts(Unity.Error.format(message))
+        IO.puts(Unity.Repl.Color.error(Unity.Error.format(message)))
     end
   end
 
@@ -379,39 +405,51 @@ defmodule Unity.Repl do
       {:ok, cldr_name} ->
         case Localize.Unit.unit_category(cldr_name) do
           {:ok, category} ->
-            IO.puts("#{cldr_name} (#{category})")
-
-            # Show aliases that map to this unit
-            aliases =
-              Unity.Aliases.known_aliases()
-              |> Enum.filter(fn alias_name ->
-                case Unity.Aliases.resolve(alias_name) do
-                  {:ok, ^cldr_name} -> true
-                  _ -> false
-                end
-              end)
-              |> Enum.sort()
-
-            if aliases != [] do
-              IO.puts("  Aliases: #{Enum.join(aliases, ", ")}")
-            end
-
-            # Show conformable units
-            by_category = Localize.Unit.known_units_by_category()
-            conformable = Map.get(by_category, category, []) -- [cldr_name]
-
-            if conformable != [] do
-              display = conformable |> Enum.sort() |> Enum.take(10)
-              suffix = if length(conformable) > 10, do: ", ...", else: ""
-              IO.puts("  Conformable: #{Enum.join(display, ", ")}#{suffix}")
-            end
+            IO.puts(Unity.Repl.Markdown.render(build_info_md(cldr_name, category)))
 
           {:error, exception} ->
-            IO.puts(Unity.Error.format(Exception.message(exception)))
+            IO.puts(Unity.Repl.Color.error(Unity.Error.format(Exception.message(exception))))
         end
 
       {:error, :unknown_unit} ->
-        IO.puts(Unity.Error.format("unknown unit: #{inspect(name)}"))
+        IO.puts(Unity.Repl.Color.error(Unity.Error.format("unknown unit: #{inspect(name)}")))
     end
+  end
+
+  defp build_info_md(cldr_name, category) do
+    aliases =
+      Unity.Aliases.known_aliases()
+      |> Enum.filter(fn alias_name ->
+        case Unity.Aliases.resolve(alias_name) do
+          {:ok, ^cldr_name} -> true
+          _ -> false
+        end
+      end)
+      |> Enum.sort()
+
+    by_category = Localize.Unit.known_units_by_category()
+    conformable = Map.get(by_category, category, []) -- [cldr_name]
+
+    sections = [
+      "## `#{cldr_name}` *(#{category})*"
+    ]
+
+    sections =
+      if aliases != [] do
+        sections ++ ["**Aliases:** #{Enum.map_join(aliases, ", ", &"`#{&1}`")}"]
+      else
+        sections
+      end
+
+    sections =
+      if conformable != [] do
+        display = conformable |> Enum.sort() |> Enum.take(10)
+        suffix = if length(conformable) > 10, do: ", *…*", else: ""
+        sections ++ ["**Conformable:** #{Enum.map_join(display, ", ", &"`#{&1}`")}#{suffix}"]
+      else
+        sections
+      end
+
+    Enum.join(sections, "\n\n")
   end
 end
