@@ -315,7 +315,8 @@ defmodule Unity.Interpreter do
         {:ok, result}
 
       {:error, %Localize.UnitConversionError{reason: :not_convertible} = exception} ->
-        {:error, Exception.message(exception) <> base_unit_diagnostic(exception.from, exception.to)}
+        {:error,
+         Exception.message(exception) <> base_unit_diagnostic(exception.from, exception.to)}
 
       {:error, exception} when is_exception(exception) ->
         {:error, Exception.message(exception)}
