@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.7.0 (2026-05-10)
+
+### Enhancements
+
+* Added `gb` as an alias for `gigabyte` so it doesn't collide with GNU's `gilbert` after `Unity.GnuUnitsImporter.import/0`.
+
+* Conversion errors now include each side's base-unit decomposition (e.g., `"gilbert" reduces to "ampere"`) so dimensional mismatches are obvious.
+
 ## v0.6.0 (2026-04-14)
 
 ### Enhancements
