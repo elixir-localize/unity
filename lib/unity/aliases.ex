@@ -198,6 +198,7 @@ defmodule Unity.Aliases do
     "kB" => "kilobyte",
     "MB" => "megabyte",
     "GB" => "gigabyte",
+    "gb" => "gigabyte",
     "TB" => "terabyte",
     "b" => "bit",
     "kb" => "kilobit",

@@ -314,6 +314,9 @@ defmodule Unity.Interpreter do
       {:ok, result} ->
         {:ok, result}
 
+      {:error, %Localize.UnitConversionError{reason: :not_convertible} = exception} ->
+        {:error, Exception.message(exception) <> base_unit_diagnostic(exception.from, exception.to)}
+
       {:error, exception} when is_exception(exception) ->
         {:error, Exception.message(exception)}
 
@@ -325,6 +328,20 @@ defmodule Unity.Interpreter do
   defp convert_value(number, target_name) when is_number(number) do
     {:error,
      "cannot convert bare number #{number} to #{inspect(target_name)} — specify a source unit"}
+  end
+
+  # Appends the base-unit decomposition of each side when a conversion is
+  # rejected. Helps the user see *why* the dimensions don't match — useful
+  # when an alias resolves to something other than they expected.
+  defp base_unit_diagnostic(from, to) do
+    with {:ok, from_base} <- Localize.Unit.BaseUnit.base_unit(from),
+         {:ok, to_base} <- Localize.Unit.BaseUnit.base_unit(to),
+         true <- from_base != to_base do
+      "\n  #{inspect(from)} reduces to #{inspect(from_base)}." <>
+        "\n  #{inspect(to)} reduces to #{inspect(to_base)}."
+    else
+      _ -> ""
+    end
   end
 
   # ── Measurement system conversion ──

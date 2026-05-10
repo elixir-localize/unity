@@ -16,7 +16,14 @@ defmodule Unity.MixProject do
       package: package(),
       start_permanent: Mix.env() == :prod,
       escript: escript(),
-      deps: deps()
+      deps: deps(),
+      aliases: aliases()
+    ]
+  end
+
+  defp aliases do
+    [
+      test: ["localize.download_locales en de ja", "test"]
     ]
   end
 
