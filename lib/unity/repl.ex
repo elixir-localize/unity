@@ -104,6 +104,9 @@ defmodule Unity.Repl do
   end
 
   defp iex_running? do
+    # IEx is not guaranteed to be loaded at runtime, so this stays a
+    # dynamic call behind the function_exported? guard.
+    # credo:disable-for-lines:2 Credo.Check.Refactor.Apply
     Code.ensure_loaded?(IEx) and function_exported?(IEx, :started?, 0) and
       apply(IEx, :started?, [])
   end

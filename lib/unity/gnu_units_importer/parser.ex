@@ -154,7 +154,7 @@ defmodule Unity.GnuUnitsImporter.Parser do
         %{state | primitives: Map.put(state.primitives, name, type)}
 
       # Single-word expression that doesn't contain numbers or operators → alias
-      is_alias?(expression) ->
+      alias_expression?(expression) ->
         %{state | aliases: Map.put(state.aliases, name, expression)}
 
       # Regular unit definition
@@ -163,7 +163,7 @@ defmodule Unity.GnuUnitsImporter.Parser do
     end
   end
 
-  defp is_alias?(expression) do
+  defp alias_expression?(expression) do
     # An alias is a single identifier with no numbers, operators, spaces, or hyphens.
     # Must be purely alphabetic (no digits — "1e3" or "2^10" are not aliases).
     Regex.match?(~r/^[a-zA-Z_]+$/, expression)

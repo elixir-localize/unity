@@ -31,37 +31,7 @@ defmodule Unity.CLI do
   """
   @spec main([String.t()]) :: :ok
   def main(args) do
-    {options, positional, _invalid} =
-      OptionParser.parse(args,
-        aliases: [
-          v: :verbose,
-          t: :terse,
-          q: :quiet,
-          h: :help,
-          d: :digits,
-          e: :exponential,
-          o: :output_format,
-          s: :strict,
-          f: :file
-        ],
-        switches: [
-          verbose: :boolean,
-          terse: :boolean,
-          quiet: :boolean,
-          strict: :boolean,
-          exponential: :boolean,
-          one_line: :boolean,
-          no_color: :boolean,
-          locale: :string,
-          digits: :integer,
-          output_format: :string,
-          file: :keep,
-          conformable: :string,
-          list: :string,
-          version: :boolean,
-          help: :boolean
-        ]
-      )
+    {options, positional, _invalid} = parse_args(args)
 
     # Load custom unit files before any evaluation
     load_custom_unit_files(options)
@@ -69,6 +39,43 @@ defmodule Unity.CLI do
     # Configure color output
     if options[:no_color], do: Application.put_env(:unity, :no_color, true)
 
+    dispatch(options, positional)
+  end
+
+  defp parse_args(args) do
+    OptionParser.parse(args,
+      aliases: [
+        v: :verbose,
+        t: :terse,
+        q: :quiet,
+        h: :help,
+        d: :digits,
+        e: :exponential,
+        o: :output_format,
+        s: :strict,
+        f: :file
+      ],
+      switches: [
+        verbose: :boolean,
+        terse: :boolean,
+        quiet: :boolean,
+        strict: :boolean,
+        exponential: :boolean,
+        one_line: :boolean,
+        no_color: :boolean,
+        locale: :string,
+        digits: :integer,
+        output_format: :string,
+        file: :keep,
+        conformable: :string,
+        list: :string,
+        version: :boolean,
+        help: :boolean
+      ]
+    )
+  end
+
+  defp dispatch(options, positional) do
     cond do
       options[:version] ->
         IO.puts("Unity v#{@version}")
@@ -102,24 +109,27 @@ defmodule Unity.CLI do
     format_options = build_format_options(options, nil)
 
     IO.stream(:stdio, :line)
-    |> Enum.each(fn line ->
-      expression = String.trim(line)
+    |> Enum.each(&evaluate_stdin_line(&1, format_options))
+  end
 
-      if expression != "" do
-        expr_options = Keyword.put(format_options, :input, expression)
+  defp evaluate_stdin_line(line, format_options) do
+    expression = String.trim(line)
 
-        case Unity.eval(expression) do
-          {:ok, result, _env} ->
-            case Unity.Formatter.format(result, expr_options) do
-              {:ok, formatted} -> IO.puts(formatted)
-              {:error, reason} -> IO.puts(:stderr, Unity.Error.format(reason))
-            end
+    if expression != "" do
+      expr_options = Keyword.put(format_options, :input, expression)
 
-          {:error, message} ->
-            IO.puts(:stderr, Unity.Error.format(message))
-        end
+      case Unity.eval(expression) do
+        {:ok, result, _env} -> print_result(result, expr_options)
+        {:error, message} -> IO.puts(:stderr, Unity.Error.format(message))
       end
-    end)
+    end
+  end
+
+  defp print_result(result, expr_options) do
+    case Unity.Formatter.format(result, expr_options) do
+      {:ok, formatted} -> IO.puts(formatted)
+      {:error, reason} -> IO.puts(:stderr, Unity.Error.format(reason))
+    end
   end
 
   defp io_tty? do
@@ -134,34 +144,37 @@ defmodule Unity.CLI do
       Localize.put_locale(locale)
     end
 
-    expression =
-      case positional do
-        # "units - feet" reads from stdin for the source
-        ["-", target] ->
-          source = IO.read(:stdio, :eof) |> String.trim()
-          "#{source} to #{target}"
-
-        [expr] ->
-          expr
-
-        [from, to] ->
-          "#{from} to #{to}"
-
-        _ ->
-          Enum.join(positional, " ")
-      end
-
+    expression = expression_from(positional)
     format_options = build_format_options(options, expression)
 
     case Unity.eval(expression) do
-      {:ok, result, _env} ->
-        case Unity.Formatter.format(result, format_options) do
-          {:ok, formatted} -> IO.puts(formatted)
-          {:error, reason} -> error_exit(reason)
-        end
+      {:ok, result, _env} -> print_result_or_exit(result, format_options)
+      {:error, message} -> error_exit(message)
+    end
+  end
 
-      {:error, message} ->
-        error_exit(message)
+  defp expression_from(positional) do
+    case positional do
+      # "units - feet" reads from stdin for the source
+      ["-", target] ->
+        source = IO.read(:stdio, :eof) |> String.trim()
+        "#{source} to #{target}"
+
+      [expr] ->
+        expr
+
+      [from, to] ->
+        "#{from} to #{to}"
+
+      _ ->
+        Enum.join(positional, " ")
+    end
+  end
+
+  defp print_result_or_exit(result, format_options) do
+    case Unity.Formatter.format(result, format_options) do
+      {:ok, formatted} -> IO.puts(formatted)
+      {:error, reason} -> error_exit(reason)
     end
   end
 

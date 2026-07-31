@@ -1,9 +1,9 @@
 defmodule Unity.GnuUnitsImporterTest do
   use ExUnit.Case, async: false
 
-  alias Unity.GnuUnitsImporter
-  alias Unity.GnuUnitsImporter.{Parser, Resolver, Registrar}
   alias Localize.Unit.CustomRegistry
+  alias Unity.GnuUnitsImporter
+  alias Unity.GnuUnitsImporter.{Parser, Registrar, Resolver}
 
   setup do
     CustomRegistry.clear()

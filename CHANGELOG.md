@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.0.0 (2026-07-31)
+
+### Changed
+
+* Requires `localize ~> 1.0`. The previous requirement of `~> 0.9` excluded Localize 1.0.
+
 ## v0.7.0 (2026-05-10)
 
 ### Enhancements

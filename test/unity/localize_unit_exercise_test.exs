@@ -14,8 +14,8 @@ defmodule Unity.LocalizeUnitExerciseTest do
   @moduletag :integration
 
   alias Localize.Unit
-  alias Localize.Unit.Math
   alias Localize.Unit.CustomRegistry
+  alias Localize.Unit.Math
 
   setup_all do
     CustomRegistry.clear()

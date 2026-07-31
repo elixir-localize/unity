@@ -34,7 +34,7 @@ defmodule Unity.Conversion.Gauge do
   # Volume of sphere = 4/3 π r³, so r = (3V / 4π)^(1/3)
   # V = pound / (ga * leaddensity)
   @pound 0.45359237
-  @lead_density 11340.0
+  @lead_density 11_340.0
   @pi :math.pi()
 
   @doc "Shotgun gauge number to bore diameter in meters."

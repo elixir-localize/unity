@@ -1,7 +1,7 @@
 defmodule Unity.MixProject do
   use Mix.Project
 
-  @version "0.7.0"
+  @version "1.0.0"
   @source_url "https://github.com/elixir-localize/unity"
 
   def project do
@@ -17,7 +17,16 @@ defmodule Unity.MixProject do
       start_permanent: Mix.env() == :prod,
       escript: escript(),
       deps: deps(),
-      aliases: aliases()
+      aliases: aliases(),
+      dialyzer: [
+        flags: [
+          :error_handling,
+          :unknown,
+          :underspecs,
+          :extra_return,
+          :missing_return
+        ]
+      ]
     ]
   end
 
@@ -78,9 +87,10 @@ defmodule Unity.MixProject do
 
   defp deps do
     [
-      {:localize, "~> 0.9"},
+      {:localize, "~> 1.0"},
       {:marcli, "~> 0.3", optional: true},
       {:nimble_parsec, "~> 1.0"},
+      {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},
       {:ex_doc, "~> 0.34", only: :release, runtime: false}
     ] ++ maybe_json_polyfill()

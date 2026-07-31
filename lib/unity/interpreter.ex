@@ -513,24 +513,7 @@ defmodule Unity.Interpreter do
     if int_exp != exponent do
       {:error, "non-integer exponents on units are not supported"}
     else
-      unit_name = unit.name
-      power_name = power_prefix(int_exp) <> unit_name
-
-      case Localize.Unit.new(1, power_name) do
-        {:ok, _} ->
-          # For "9 m^2", the value stays 9 and the unit becomes square-meter.
-          # The exponent applies to the unit, not the value.
-          value = unit.value || 1
-
-          case Localize.Unit.new(value, power_name) do
-            {:ok, result} -> {:ok, result, environment}
-            {:error, exception} -> {:error, Exception.message(exception)}
-          end
-
-        {:error, _} ->
-          # Fall back to repeated multiplication for compound units
-          repeated_mult(unit, int_exp, environment)
-      end
+      power_unit(unit, int_exp, environment)
     end
   end
 
@@ -540,6 +523,28 @@ defmodule Unity.Interpreter do
 
   defp power_value(_base, _exponent, _environment) do
     {:error, "cannot raise to non-numeric exponent"}
+  end
+
+  defp power_unit(unit, int_exp, environment) do
+    power_name = power_prefix(int_exp) <> unit.name
+
+    case Localize.Unit.new(1, power_name) do
+      {:ok, _} ->
+        # For "9 m^2", the value stays 9 and the unit becomes square-meter.
+        # The exponent applies to the unit, not the value.
+        new_power_unit(unit.value || 1, power_name, environment)
+
+      {:error, _} ->
+        # Fall back to repeated multiplication for compound units
+        repeated_mult(unit, int_exp, environment)
+    end
+  end
+
+  defp new_power_unit(value, power_name, environment) do
+    case Localize.Unit.new(value, power_name) do
+      {:ok, result} -> {:ok, result, environment}
+      {:error, exception} -> {:error, Exception.message(exception)}
+    end
   end
 
   defp repeated_mult(_unit, 0, environment) do
@@ -667,27 +672,7 @@ defmodule Unity.Interpreter do
 
   defp apply_function(name, [n], environment)
        when is_map_key(@dimensionless_functions, name) and is_number(n) do
-    result =
-      case name do
-        "sin" -> :math.sin(n)
-        "cos" -> :math.cos(n)
-        "tan" -> :math.tan(n)
-        "asin" -> :math.asin(n)
-        "acos" -> :math.acos(n)
-        "atan" -> :math.atan(n)
-        "ln" -> :math.log(n)
-        "log" -> :math.log10(n)
-        "log2" -> :math.log2(n)
-        "exp" -> :math.exp(n)
-        "sinh" -> :math.sinh(n)
-        "cosh" -> :math.cosh(n)
-        "tanh" -> :math.tanh(n)
-        "asinh" -> :math.asinh(n)
-        "acosh" -> :math.acosh(n)
-        "atanh" -> :math.atanh(n)
-      end
-
-    {:ok, result, environment}
+    {:ok, dimensionless_result(name, n), environment}
   end
 
   # Single-argument scalar functions (plain numbers only)
@@ -705,18 +690,7 @@ defmodule Unity.Interpreter do
   # Two-argument scalar functions (plain numbers only)
   defp apply_function(name, [a, b], environment)
        when name in @scalar_functions_2 and is_number(a) and is_number(b) do
-    result =
-      case name do
-        "atan2" -> :math.atan2(a, b)
-        "hypot" -> :math.sqrt(a * a + b * b)
-        "gcd" -> Integer.gcd(trunc(a), trunc(b))
-        "lcm" -> lcm(trunc(a), trunc(b))
-        "min" -> min(a, b)
-        "max" -> max(a, b)
-        "mod" -> :math.fmod(a, b)
-      end
-
-    {:ok, result, environment}
+    {:ok, scalar_2_result(name, a, b), environment}
   end
 
   defp apply_function(name, _args, _environment) when name in @all_functions do
@@ -846,6 +820,31 @@ defmodule Unity.Interpreter do
     {:error, "unknown function: #{inspect(name)}"}
   end
 
+  defp dimensionless_result("sin", n), do: :math.sin(n)
+  defp dimensionless_result("cos", n), do: :math.cos(n)
+  defp dimensionless_result("tan", n), do: :math.tan(n)
+  defp dimensionless_result("asin", n), do: :math.asin(n)
+  defp dimensionless_result("acos", n), do: :math.acos(n)
+  defp dimensionless_result("atan", n), do: :math.atan(n)
+  defp dimensionless_result("ln", n), do: :math.log(n)
+  defp dimensionless_result("log", n), do: :math.log10(n)
+  defp dimensionless_result("log2", n), do: :math.log2(n)
+  defp dimensionless_result("exp", n), do: :math.exp(n)
+  defp dimensionless_result("sinh", n), do: :math.sinh(n)
+  defp dimensionless_result("cosh", n), do: :math.cosh(n)
+  defp dimensionless_result("tanh", n), do: :math.tanh(n)
+  defp dimensionless_result("asinh", n), do: :math.asinh(n)
+  defp dimensionless_result("acosh", n), do: :math.acosh(n)
+  defp dimensionless_result("atanh", n), do: :math.atanh(n)
+
+  defp scalar_2_result("atan2", a, b), do: :math.atan2(a, b)
+  defp scalar_2_result("hypot", a, b), do: :math.sqrt(a * a + b * b)
+  defp scalar_2_result("gcd", a, b), do: Integer.gcd(trunc(a), trunc(b))
+  defp scalar_2_result("lcm", a, b), do: lcm(trunc(a), trunc(b))
+  defp scalar_2_result("min", a, b), do: min(a, b)
+  defp scalar_2_result("max", a, b), do: max(a, b)
+  defp scalar_2_result("mod", a, b), do: :math.fmod(a, b)
+
   defp factorial(n) when is_integer(n) and n >= 0 do
     Enum.reduce(1..max(n, 1)//1, 1, &Kernel.*/2)
   end
@@ -854,6 +853,9 @@ defmodule Unity.Interpreter do
 
   defp gamma(n) do
     if Code.ensure_loaded?(:math) and function_exported?(:math, :gamma, 1) do
+      # A direct call would not compile on OTP < 27, where :math.gamma/1
+      # does not exist; the guard above selects the fallback there.
+      # credo:disable-for-next-line Credo.Check.Refactor.Apply
       apply(:math, :gamma, [n])
     else
       # Stirling's approximation for OTP < 27

@@ -34,7 +34,7 @@ Add `unity` to your list of dependencies in `mix.exs`:
 ```elixir
 def deps do
   [
-    {:unity, "~> 0.5"}
+    {:unity, "~> 1.0"}
   ]
 end
 ```

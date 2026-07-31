@@ -23,7 +23,7 @@ defmodule Unity.GnuUnitsImporter do
 
   """
 
-  alias Unity.GnuUnitsImporter.{Parser, Resolver, Registrar}
+  alias Unity.GnuUnitsImporter.{Parser, Registrar, Resolver}
 
   @bundled_path Application.app_dir(:unity, "priv/definitions.units")
 

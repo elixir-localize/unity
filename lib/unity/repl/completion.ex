@@ -76,7 +76,6 @@ defmodule Unity.Repl.Completion do
     a_chars
     |> Enum.zip(b_chars)
     |> Enum.take_while(fn {x, y} -> x == y end)
-    |> Enum.map(&elem(&1, 0))
-    |> Enum.join()
+    |> Enum.map_join(&elem(&1, 0))
   end
 end

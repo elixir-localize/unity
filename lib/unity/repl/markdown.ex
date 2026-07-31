@@ -18,6 +18,9 @@ defmodule Unity.Repl.Markdown do
   @spec render(String.t()) :: String.t()
   def render(markdown) when is_binary(markdown) do
     if marcli_available?() do
+      # Marcli is an optional dependency; a direct call would not compile
+      # when it is absent, so dispatch stays dynamic behind the guard.
+      # credo:disable-for-next-line Credo.Check.Refactor.Apply
       apply(Marcli, :render, [markdown, [escape_sequences: Color.enabled?()]])
     else
       plain_render(markdown)
@@ -40,8 +43,7 @@ defmodule Unity.Repl.Markdown do
   defp plain_render(markdown) do
     markdown
     |> String.split("\n")
-    |> Enum.map(&render_line/1)
-    |> Enum.join("\n")
+    |> Enum.map_join("\n", &render_line/1)
   end
 
   defp render_line("# " <> rest), do: Color.bold(strip_inline(rest))

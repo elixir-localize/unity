@@ -1,7 +1,7 @@
 defmodule Unity.InterpreterTest do
   use ExUnit.Case, async: true
 
-  alias Unity.{Parser, Interpreter}
+  alias Unity.{Interpreter, Parser}
 
   defp eval!(input, environment \\ %{}) do
     {:ok, ast} = Parser.parse(input)

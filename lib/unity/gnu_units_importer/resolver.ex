@@ -197,13 +197,7 @@ defmodule Unity.GnuUnitsImporter.Resolver do
     sorted_prefixes = Process.get(:gnu_sorted_prefixes)
     known_bases = Process.get(:gnu_known_bases)
 
-    result =
-      Enum.find_value(sorted_prefixes, fn prefix ->
-        if String.starts_with?(name, prefix) and byte_size(name) > byte_size(prefix) do
-          remainder = binary_part(name, byte_size(prefix), byte_size(name) - byte_size(prefix))
-          if MapSet.member?(known_bases, remainder), do: {prefix, remainder}
-        end
-      end)
+    result = Enum.find_value(sorted_prefixes, &split_known_prefix(name, &1, known_bases))
 
     case result do
       {prefix, remainder} ->
@@ -216,6 +210,15 @@ defmodule Unity.GnuUnitsImporter.Resolver do
 
       nil ->
         :error
+    end
+  end
+
+  # Returns `{prefix, remainder}` when `name` starts with `prefix` and the
+  # remainder is a known base unit, otherwise `nil` so `find_value` continues.
+  defp split_known_prefix(name, prefix, known_bases) do
+    if String.starts_with?(name, prefix) and byte_size(name) > byte_size(prefix) do
+      remainder = binary_part(name, byte_size(prefix), byte_size(name) - byte_size(prefix))
+      if MapSet.member?(known_bases, remainder), do: {prefix, remainder}
     end
   end
 
