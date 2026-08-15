@@ -308,6 +308,18 @@ defmodule Unity.Aliases do
   unit list, but not the spellings normalised at resolution time, which are not
   an enumerable set.
 
+  ### Returns
+
+  * A list of alias names, each of which resolves via `resolve/1`.
+
+  ### Examples
+
+      iex> "km" in Unity.Aliases.known_aliases()
+      true
+
+      iex> "months" in Unity.Aliases.known_aliases()
+      true
+
   """
   @spec known_aliases() :: [String.t()]
   def known_aliases do
@@ -315,7 +327,24 @@ defmodule Unity.Aliases do
   end
 
   @doc """
-  Returns all known unit names (both aliases and CLDR base names).
+  Returns the CLDR base unit names.
+
+  These are the names `Localize.Unit` enumerates by category. Aliases, derived
+  plurals and SI-prefixed forms such as `kilometer` are not among them; use
+  `known_aliases/0` for the alias table, or `resolve/1` to resolve an arbitrary
+  spelling.
+
+  ### Returns
+
+  * A list of CLDR base unit names.
+
+  ### Examples
+
+      iex> "meter" in Unity.Aliases.all_known_names()
+      true
+
+      iex> "kilometer" in Unity.Aliases.all_known_names()
+      false
 
   """
   @spec all_known_names() :: [String.t()]
@@ -341,7 +370,17 @@ defmodule Unity.Aliases do
 
   ### Returns
 
-  A list of `{cldr_name, distance}` tuples, sorted by distance descending.
+  A list of `{cldr_name, distance}` tuples, sorted by distance descending and
+  then by name. Each unit appears once, under its CLDR name, scored by its
+  closest-matching spelling.
+
+  ### Examples
+
+      iex> Unity.Aliases.suggest("metrs", max_results: 1)
+      [{"meter", 0.9444444444444445}]
+
+      iex> Unity.Aliases.suggest("secnd", max_results: 2)
+      [{"second", 0.9444444444444445}, {"decade", 0.7000000000000001}]
 
   """
   @spec suggest(String.t(), keyword()) :: [{String.t(), float()}]
@@ -351,11 +390,18 @@ defmodule Unity.Aliases do
 
     all_names = known_aliases() ++ @all_known_names_list
 
+    # Every spelling of a unit is scored, so a typo close to an abbreviation or
+    # a plural still finds it, but a unit is reported under its CLDR name.
+    # Scoring the surface form and reporting it would suggest "nights" for
+    # "millilightsecond" purely because the plural happens to score higher than
+    # "night" does.
     all_names
-    |> Enum.map(fn known -> {known, String.jaro_distance(name, known)} end)
-    |> Enum.filter(fn {_known, distance} -> distance >= threshold end)
-    |> Enum.sort_by(fn {_known, distance} -> distance end, :desc)
-    |> Enum.uniq_by(fn {known, _distance} -> resolve_to_cldr(known) end)
+    |> Enum.map(fn known -> {resolve_to_cldr(known), String.jaro_distance(name, known)} end)
+    |> Enum.filter(fn {_cldr_name, distance} -> distance >= threshold end)
+    |> Enum.reduce(%{}, fn {cldr_name, distance}, best ->
+      Map.update(best, cldr_name, distance, &max(&1, distance))
+    end)
+    |> Enum.sort_by(fn {cldr_name, distance} -> {-distance, cldr_name} end)
     |> Enum.take(max_results)
   end
 

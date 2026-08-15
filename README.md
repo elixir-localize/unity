@@ -81,6 +81,9 @@ See the [Exploring Unity](https://hexdocs.pm/unity/exploring_unity.html) guide f
 
 See https://www.ibiblio.org/harris/500milemail.html.
 
+`lightsecond` is one of the GNU Units definitions, so run
+`Unity.GnuUnitsImporter.import/0` first to make it available:
+
 ```
 > 3 millilightsecond to mile
 558.847191 miles

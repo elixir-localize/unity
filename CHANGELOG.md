@@ -12,6 +12,10 @@
 
 * `Unity.Aliases.resolve/1` returns `{:error, :unknown_unit}` instead of raising when given a non-string.
 
+* `Unity.Aliases.suggest/2` reports each unit under its CLDR name rather than whichever spelling scored best, so a typo no longer suggests a derived plural such as `nights`. Every spelling is still scored, so a typo close to an abbreviation or plural finds the unit.
+
+* `Unity.Aliases.all_known_names/0` documented that it returned aliases as well as CLDR names; it returns only CLDR base unit names.
+
 ## v1.0.0 (2026-07-31)
 
 ### Changed

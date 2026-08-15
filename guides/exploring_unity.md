@@ -202,7 +202,7 @@ Every unit also accepts its English plural, so `3 months`, `2 centuries` and `50
 | `L`, `mL`, `gal`, `cup` | liter, milliliter, gallon, cup |
 | `J`, `kJ`, `cal`, `kWh` | joule, kilojoule, calorie, kilowatt-hour |
 | `W`, `kW`, `hp` | watt, kilowatt, horsepower |
-| `Pa`, `atm`, `psi` | pascal, atmosphere, pound-per-square-inch |
+| `Pa`, `atm`, `psi` | pascal, atmosphere, pound-force-per-square-inch |
 | `Hz`, `kHz`, `MHz` | hertz, kilohertz, megahertz |
 | `N`, `lbf` | newton, pound-force |
 

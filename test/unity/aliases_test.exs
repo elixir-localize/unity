@@ -1,7 +1,8 @@
 defmodule Unity.AliasesTest do
   use ExUnit.Case, async: true
 
-  doctest Unity.Aliases
+  # `Unity.Aliases` is already doctested from `unity_test.exs`; declaring it
+  # here too would run every one of its doctests twice.
   doctest Unity.Aliases.Plural
 
   alias Unity.Aliases
