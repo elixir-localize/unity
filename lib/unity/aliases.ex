@@ -3,9 +3,20 @@ defmodule Unity.Aliases do
   Maps user-friendly unit abbreviations and common names to CLDR unit identifiers
   recognized by `Localize.Unit`.
 
-  The alias table is built at compile time from a hand-curated abbreviation map.
-  Resolution tries the alias table first, then falls back to passing the name
-  directly to `Localize.Unit.new/1` to see if it is already a valid CLDR name.
+  The alias table is built at compile time from a hand-curated abbreviation map
+  plus a plural for every CLDR unit, derived by `Unity.Aliases.Plural`. Deriving
+  the plurals rather than listing them keeps the table in step with the unit
+  data: every unit that resolves in the singular also resolves in the plural,
+  and a unit added to CLDR gets its plural without an edit here.
+
+  Resolution tries, in order, the hand-written aliases, the name as a CLDR unit
+  name, the derived plurals, and `Localize.Unit.new/1`. A name that still does
+  not resolve is retried through the spelling rules in `Unity.Aliases.Plural`,
+  which cover forms too numerous to enumerate — the plural of an SI-prefixed
+  unit such as `milliseconds`, and British spellings such as `millilitres`.
+
+  A retried spelling is accepted only if it is itself a known unit, so an
+  ordinary English word is never promoted to a unit.
 
   """
 
@@ -19,13 +30,9 @@ defmodule Unity.Aliases do
     "um" => "micrometer",
     "nm" => "nanometer",
     "ft" => "foot",
-    "feet" => "foot",
     "in" => "inch",
-    "inches" => "inch",
     "yd" => "yard",
-    "yards" => "yard",
     "mi" => "mile",
-    "miles" => "mile",
     "nmi" => "nautical-mile",
     "au" => "astronomical-unit",
     "ly" => "light-year",
@@ -39,37 +46,27 @@ defmodule Unity.Aliases do
     "ug" => "microgram",
     "lb" => "pound",
     "lbs" => "pound",
-    "pounds" => "pound",
     "oz" => "ounce",
-    "ounces" => "ounce",
     "t" => "tonne",
-    "tons" => "ton",
-    "tonnes" => "tonne",
     "st" => "stone",
 
     # Time
     "s" => "second",
     "sec" => "second",
     "secs" => "second",
-    "seconds" => "second",
     "ms" => "millisecond",
     "µs" => "microsecond",
     "us" => "microsecond",
     "ns" => "nanosecond",
     "min" => "minute",
     "mins" => "minute",
-    "minutes" => "minute",
     "h" => "hour",
     "hr" => "hour",
     "hrs" => "hour",
-    "hours" => "hour",
     "d" => "day",
-    "days" => "day",
     "wk" => "week",
-    "weeks" => "week",
     "yr" => "year",
     "yrs" => "year",
-    "years" => "year",
 
     # Temperature
     "°C" => "celsius",
@@ -85,14 +82,11 @@ defmodule Unity.Aliases do
     "kmh" => "kilometer-per-hour",
     "mps" => "meter-per-second",
     "kn" => "knot",
-    "knots" => "knot",
     "c" => "light-speed",
 
     # Volume
     "L" => "liter",
     "l" => "liter",
-    "liters" => "liter",
-    "litres" => "liter",
     "mL" => "milliliter",
     "ml" => "milliliter",
     "dL" => "deciliter",
@@ -102,10 +96,8 @@ defmodule Unity.Aliases do
     "kL" => "kiloliter",
     "kl" => "kiloliter",
     "gal" => "gallon",
-    "gallons" => "gallon",
     "qt" => "quart",
     "pt" => "pint",
-    "cups" => "cup",
     "tbsp" => "tablespoon",
     "tsp" => "teaspoon",
     "floz" => "fluid-ounce",
@@ -170,7 +162,6 @@ defmodule Unity.Aliases do
     "kV" => "kilovolt",
     "F" => "farad",
     "Ω" => "ohm",
-    "ohm" => "ohm",
     "S" => "siemens",
     "C" => "coulomb",
     "H" => "henry",
@@ -210,28 +201,14 @@ defmodule Unity.Aliases do
 
     # Misc
     "px" => "pixel",
-    "ct" => "carat",
-
-    # Plural forms for common base units
-    "meters" => "meter",
-    "kilometres" => "kilometer",
-    "kilometers" => "kilometer",
-    "centimeters" => "centimeter",
-    "centimetres" => "centimeter",
-    "millimeters" => "millimeter",
-    "millimetres" => "millimeter",
-    "grams" => "gram",
-    "kilograms" => "kilogram",
-    "joules" => "joule",
-    "watts" => "watt",
-    "newtons" => "newton",
-    "pascals" => "pascal",
-    "amperes" => "ampere",
-    "volts" => "volt",
-    "hertz" => "hertz",
-    "foot" => "foot",
-    "inch" => "inch"
+    "ct" => "carat"
   }
+
+  # Plural forms are not listed above. They are derived from the CLDR unit list
+  # by `@derived_plurals` below, and SI-prefixed and British spellings are
+  # normalised at resolution time, so `months`, `centuries`, `milliseconds` and
+  # `millilitres` all resolve without an entry here. Add an alias above only
+  # for an abbreviation or a spelling no rule produces.
 
   @all_known_names_set Localize.Unit.known_units_by_category()
                        |> Enum.flat_map(fn {_category, names} -> names end)
@@ -239,11 +216,30 @@ defmodule Unity.Aliases do
 
   @all_known_names_list MapSet.to_list(@all_known_names_set)
 
+  # A plural alias for every CLDR unit that has a distinct English plural, so
+  # that anything resolving in the singular also resolves in the plural. A
+  # derived plural never displaces a real unit name or a hand-written alias;
+  # both take precedence, and the guards below keep it that way if CLDR later
+  # adds a unit whose name collides with some other unit's plural.
+  @derived_plurals for cldr_name <- @all_known_names_list,
+                       plural <- Unity.Aliases.Plural.plural(cldr_name),
+                       not MapSet.member?(@all_known_names_set, plural),
+                       not is_map_key(@aliases, plural),
+                       into: %{},
+                       do: {plural, cldr_name}
+
   @doc """
   Resolves a user-provided unit name to a CLDR unit identifier.
 
-  Tries the alias table first, then checks if the name is already a valid
-  CLDR unit name. Returns `{:ok, cldr_name}` or `{:error, :unknown_unit}`.
+  Tries the alias table first, then the name as a CLDR unit name, then the
+  derived plural table. A name that still does not resolve is retried through
+  the spelling rules in `Unity.Aliases.Plural`, which cover the plural of an
+  SI-prefixed unit such as `milliseconds` and British spellings such as
+  `millilitres`. Returns `{:ok, cldr_name}` or `{:error, :unknown_unit}`.
+
+  A retried spelling is only accepted if it is itself a known unit, so an
+  ordinary word is never promoted to a unit: `bricks` proposes `brick`, which
+  is not a unit, and the call returns an error.
 
   ### Arguments
 
@@ -263,32 +259,59 @@ defmodule Unity.Aliases do
       iex> Unity.Aliases.resolve("meter")
       {:ok, "meter"}
 
+      iex> Unity.Aliases.resolve("months")
+      {:ok, "month"}
+
+      iex> Unity.Aliases.resolve("milliseconds")
+      {:ok, "millisecond"}
+
       iex> Unity.Aliases.resolve("frobnicator")
       {:error, :unknown_unit}
 
   """
-  @spec resolve(String.t()) :: {:ok, String.t()} | {:error, :unknown_unit}
-  def resolve(name) do
-    case Map.get(@aliases, name) do
-      nil ->
-        if MapSet.member?(@all_known_names_set, name) do
-          {:ok, name}
-        else
-          try_as_cldr_name(name)
-        end
-
-      cldr_name ->
-        {:ok, cldr_name}
+  @spec resolve(term()) :: {:ok, String.t()} | {:error, :unknown_unit}
+  def resolve(name) when is_binary(name) do
+    with :error <- lookup(name),
+         :error <- lookup_respelled(name) do
+      {:error, :unknown_unit}
     end
   end
 
+  def resolve(_name) do
+    {:error, :unknown_unit}
+  end
+
+  defp lookup(name) do
+    cond do
+      cldr_name = Map.get(@aliases, name) -> {:ok, cldr_name}
+      MapSet.member?(@all_known_names_set, name) -> {:ok, name}
+      cldr_name = Map.get(@derived_plurals, name) -> {:ok, cldr_name}
+      true -> try_as_cldr_name(name)
+    end
+  end
+
+  defp lookup_respelled(name) do
+    name
+    |> Unity.Aliases.Plural.candidates()
+    |> Enum.find_value(:error, fn candidate ->
+      case lookup(candidate) do
+        {:ok, cldr_name} -> {:ok, cldr_name}
+        :error -> nil
+      end
+    end)
+  end
+
   @doc """
-  Returns a list of all known alias names (the keys of the alias table).
+  Returns a list of all known alias names.
+
+  Includes the hand-written abbreviations and the plurals derived from the CLDR
+  unit list, but not the spellings normalised at resolution time, which are not
+  an enumerable set.
 
   """
   @spec known_aliases() :: [String.t()]
   def known_aliases do
-    Map.keys(@aliases)
+    Map.keys(@aliases) ++ Map.keys(@derived_plurals)
   end
 
   @doc """
@@ -326,7 +349,7 @@ defmodule Unity.Aliases do
     max_results = Keyword.get(options, :max_results, 5)
     threshold = Keyword.get(options, :threshold, 0.7)
 
-    all_names = Map.keys(@aliases) ++ @all_known_names_list
+    all_names = known_aliases() ++ @all_known_names_list
 
     all_names
     |> Enum.map(fn known -> {known, String.jaro_distance(name, known)} end)
@@ -337,13 +360,13 @@ defmodule Unity.Aliases do
   end
 
   defp resolve_to_cldr(name) do
-    Map.get(@aliases, name, name)
+    Map.get(@aliases, name) || Map.get(@derived_plurals, name) || name
   end
 
   defp try_as_cldr_name(name) do
     case Localize.Unit.new(name) do
       {:ok, _unit} -> {:ok, name}
-      {:error, _} -> {:error, :unknown_unit}
+      {:error, _} -> :error
     end
   end
 end

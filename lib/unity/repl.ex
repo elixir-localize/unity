@@ -239,9 +239,11 @@ defmodule Unity.Repl do
       Unity.Aliases.all_known_names()
       |> Enum.filter(&String.contains?(&1, query_down))
 
-    # Combine, resolve to CLDR names, deduplicate
+    # Combine, resolve to CLDR names, deduplicate. CLDR names come first so a
+    # unit is listed under its canonical name rather than under whichever alias
+    # happens to match — `month` rather than its derived plural `months`.
     all_matches =
-      (alias_matches ++ cldr_matches)
+      (cldr_matches ++ alias_matches)
       |> Enum.map(fn name ->
         case Unity.Aliases.resolve(name) do
           {:ok, cldr} -> {name, cldr}

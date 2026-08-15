@@ -187,6 +187,8 @@ Locale set to :de
 
 Unity accepts CLDR unit names (`meter`, `kilogram`, `second`), over 150 common abbreviations, and SI-prefixed forms.
 
+Every unit also accepts its English plural, so `3 months`, `2 centuries` and `500 milliseconds` read as naturally as the singular. Plurals are derived from the unit list rather than listed by hand, and irregular forms are handled: `feet`, `inches`, `centuries`, `solar-radii`. British spellings (`metre`, `kilometres`, `litre`) resolve too.
+
 ### Common aliases
 
 | Alias | Unit |
@@ -207,9 +209,9 @@ Unity accepts CLDR unit names (`meter`, `kilogram`, `second`), over 150 common a
 Unknown names produce fuzzy suggestions:
 
 ```
-> 3 feets to meters
-  unknown unit: "feets"
-  Did you mean: "feet", "foot", "meter"?
+> 3 secnd to minutes
+  unknown unit: "secnd"
+  Did you mean: "second", "decade"?
 ```
 
 ### SI prefixes on custom units

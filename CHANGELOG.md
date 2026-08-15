@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased
+
+### Bug Fixes
+
+* `Unity.Aliases.resolve/1` now resolves the plural of every CLDR unit, fixing `months`, `quarters`, `decades`, `centuries` and 100-odd others that failed while their singular resolved. Plurals are derived from the unit list by the new `Unity.Aliases.Plural` rather than hand-listed, so a unit added to CLDR gets its plural automatically.
+
+* British spellings now resolve in the singular as well as the plural — `metre`, `kilometre` and `litre` previously failed while `kilometres` and `litres` worked.
+
+* Plurals of SI-prefixed units such as `milliseconds` and `megabytes` now resolve.
+
+* `Unity.Aliases.resolve/1` returns `{:error, :unknown_unit}` instead of raising when given a non-string.
+
 ## v1.0.0 (2026-07-31)
 
 ### Changed
