@@ -98,6 +98,15 @@ jobs:
       - name: Run integration tests
         run: mix test --only integration
 
+      # The escript is built in `prod`, as `mix escript.install hex unity`
+      # builds it, and must read Localize's data from inside itself.
+      - name: Build and run the escript
+        env:
+          MIX_ENV: prod
+        run: |
+          mix escript.build
+          test "$(./unity -1 "10 miles" "km")" = "16.09344 kilometers"
+
       - name: Restore PLT cache
         if: matrix.lint
         uses: actions/cache@v6

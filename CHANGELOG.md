@@ -16,6 +16,8 @@
 
 ### Changed
 
+* Localize `~> 1.4` is required, the first release that reads its data from inside an escript. CI builds the escript in `prod` and runs a conversion through it on every row.
+
 * Marcli is a development dependency only, so neither a project depending on unity nor its escript carries MDEx, its NIF or Jason. The REPL uses Marcli when a project adds it.
 
 ## v1.1.0 (2026-08-16)
