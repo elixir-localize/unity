@@ -49,21 +49,28 @@ iex> result.value
 9.84251968503937
 ```
 
-**As a REPL** — interactive calculator with tab completion and history:
+**As a REPL** — interactive calculator with tab completion and history, started from `iex -S mix`:
 
-```bash
-$ iex -S mix
+```elixir
 iex> Unity.Repl.start()
 ```
 
-**As a CLI** — single-expression evaluation and scripting:
+The REPL renders its help and listings as markdown through [Marcli](https://hex.pm/packages/marcli) when your project includes `{:marcli, "~> 0.3"}`, and as plain text otherwise. Unity does not bring Marcli, or the MDEx NIF it depends on, into your project.
+
+**As a CLI** — an escript for single expressions, scripts and an interactive session:
 
 ```bash
-$ mix escript.build
-$ ./unity "3 meters to feet"
-$ ./unity -v "1 gallon" "liters"
-$ echo "100 celsius to fahrenheit" | ./unity
+mix escript.install hex unity
 ```
+
+```bash
+unity "3 meters to feet"
+unity -v "1 gallon" "liters"
+echo "100 celsius to fahrenheit" | unity
+unity
+```
+
+Given no expression on a terminal, `unity` starts the interactive session, with line editing, tab completion and history kept in `~/.unity_history`. The escript carries Localize's English data; any other locale, named with `--locale` or taken from the environment, is downloaded from the Localize CDN on first use and cached in the user cache directory (`~/.cache/localize` on Linux, `~/Library/Caches/localize` on macOS). To build the escript from a checkout, run `MIX_ENV=prod mix escript.build`.
 
 ## What's included
 

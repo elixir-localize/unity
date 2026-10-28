@@ -42,7 +42,25 @@ defmodule Unity.CLI do
     dispatch(options, positional)
   end
 
+  # `-1` is GNU units' short form of `--one-line`, but `OptionParser` reads
+  # any `-<digit>` as a negative number, so it is renamed before parsing.
+  # `--list` takes an optional category, which `OptionParser` cannot
+  # express: given alone it comes back as invalid, and means every category.
   defp parse_args(args) do
+    args =
+      Enum.map(args, fn
+        "-1" -> "--one-line"
+        arg -> arg
+      end)
+
+    {options, positional, invalid} = parse_options(args)
+
+    if {"--list", nil} in invalid,
+      do: {Keyword.put(options, :list, ""), positional, List.delete(invalid, {"--list", nil})},
+      else: {options, positional, invalid}
+  end
+
+  defp parse_options(args) do
     OptionParser.parse(args,
       aliases: [
         v: :verbose,
@@ -92,12 +110,19 @@ defmodule Unity.CLI do
       positional != [] ->
         run_expression(positional, options)
 
-      not io_tty?() ->
+      not Unity.Repl.terminal?() ->
         run_stdin(options)
 
       true ->
-        repl_options = build_repl_options(options)
-        Unity.Repl.start(repl_options)
+        start_repl(options)
+    end
+  end
+
+  # A crashed session has already been reported by the Erlang shell.
+  defp start_repl(options) do
+    case Unity.Repl.start(build_repl_options(options)) do
+      :ok -> :ok
+      {:error, _reason} -> error_exit("the interactive session ended unexpectedly")
     end
   end
 
@@ -129,13 +154,6 @@ defmodule Unity.CLI do
     case Unity.Formatter.format(result, expr_options) do
       {:ok, formatted} -> IO.puts(formatted)
       {:error, reason} -> IO.puts(:stderr, Unity.Error.format(reason))
-    end
-  end
-
-  defp io_tty? do
-    case :io.getopts(:standard_io) do
-      opts when is_list(opts) -> Keyword.get(opts, :echo, false) != false
-      _ -> false
     end
   end
 
@@ -191,8 +209,13 @@ defmodule Unity.CLI do
         do: [{:output_format, options[:output_format]} | opts],
         else: opts
 
-    # Reciprocal line: shown by default for :default format, suppressed by --strict or --one-line
-    show_reciprocal = format == :default and not options[:strict] and not options[:one_line]
+    # Reciprocal line: shown by default for :default format, suppressed by
+    # --strict or --one-line. A boolean switch is absent from the parsed
+    # options unless it was given, and `not/1` takes only booleans.
+    show_reciprocal =
+      format == :default and not Keyword.get(options, :strict, false) and
+        not Keyword.get(options, :one_line, false)
+
     [{:show_reciprocal, show_reciprocal} | opts]
   end
 

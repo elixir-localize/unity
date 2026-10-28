@@ -42,8 +42,11 @@ defmodule Unity.MixProject do
     ]
   end
 
+  # Localize reads its data from its `priv` directory, which an escript
+  # holds only for the applications named here; Localize extracts it into
+  # the user cache directory at startup.
   defp escript do
-    [main_module: Unity.CLI]
+    [main_module: Unity.CLI, include_priv_for: [:localize]]
   end
 
   defp description do
@@ -57,7 +60,9 @@ defmodule Unity.MixProject do
     [
       licenses: ["Apache-2.0"],
       links: links(),
-      files: ~w(lib priv .formatter.exs mix.exs README.md CHANGELOG.md LICENSE.md)
+      # `config` is included for the escript: `mix escript.install hex unity`
+      # builds the escript inside this package and embeds its configuration.
+      files: ~w(lib priv config .formatter.exs mix.exs README.md CHANGELOG.md LICENSE.md)
     ]
   end
 
@@ -87,8 +92,14 @@ defmodule Unity.MixProject do
 
   defp deps do
     [
-      {:localize, "~> 1.0"},
-      {:marcli, "~> 0.3", optional: true},
+      {:localize, "~> 1.4"},
+      # Marcli renders the REPL's markdown through MDEx, a Rust NIF, and the
+      # REPL renders plain text without it. `optional` keeps it from the
+      # projects that depend on unity; `only` keeps it, MDEx and their own
+      # dependencies out of unity's `:prod` builds, which include the
+      # escript `mix escript.install hex unity` builds. A NIF cannot load
+      # inside an escript in any case.
+      {:marcli, "~> 0.3", optional: true, only: [:dev, :test]},
       {:nimble_parsec, "~> 1.0"},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},

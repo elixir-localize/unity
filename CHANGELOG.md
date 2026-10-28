@@ -1,5 +1,23 @@
 # Changelog
 
+## v1.2.0 (Unreleased)
+
+### Bug Fixes
+
+* The escript starts: it carries Localize's data with `include_priv_for: [:localize]`, which Localize 1.4 reads from an escript, and downloads any other locale on first use.
+
+* A conversion in the default format no longer crashes by applying `not/1` to an absent `--strict` switch.
+
+* `-1` is the short form of `--one-line`, as the help says, where it was read as a negative number; `--list` without a category lists the categories.
+
+* The escript's REPL starts on a terminal, where it read standard input because `:echo` is false under `-noshell`, runs in its own process as `:shell.start_interactive/1` requires, and ends the escript if it crashes.
+
+* The REPL renders plain text when Marcli's NIF cannot load, as in an escript, and lays tables out in columns.
+
+### Changed
+
+* Marcli is a development dependency only, so neither a project depending on unity nor its escript carries MDEx, its NIF or Jason. The REPL uses Marcli when a project adds it.
+
 ## v1.1.0 (2026-08-16)
 
 ### Bug Fixes

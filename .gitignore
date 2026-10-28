@@ -19,6 +19,9 @@ erl_crash.dump
 # Also ignore archive artifacts (built via "mix archive.build").
 *.ez
 
+# The escript built by "mix escript.build".
+/unity
+
 # Ignore package tarball (built via "mix hex.build").
 localize-*.tar
 
@@ -43,6 +46,7 @@ bench_unit_parser.sh
 
 # Claude
 CLAUDE.md
+CLAUDE.local.md
 .claude/
 /plans
 

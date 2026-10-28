@@ -26,8 +26,14 @@ defmodule Unity.Repl do
     disable. Only used when the REPL bootstraps its own terminal (i.e.
     not running under IEx).
 
+  ### Returns
+
+  * `:ok` when the session ends.
+
+  * `{:error, reason}` when the session's process ends abnormally.
+
   """
-  @spec start(keyword()) :: :ok
+  @spec start(keyword()) :: :ok | {:error, term()}
   def start(options \\ []) do
     if needs_terminal_bootstrap?() do
       start_with_terminal(options)
@@ -36,16 +42,37 @@ defmodule Unity.Repl do
     end
   end
 
+  # The session runs in the shell process `:shell.start_interactive/1`
+  # starts, where the Erlang shell supplies line editing, history and
+  # completion. Were that process to crash, the Erlang shell would report
+  # it and wait for job-control commands, so the session is monitored and a
+  # crash ends the REPL with an error. An Erlang shell that is already
+  # running edits lines itself.
   defp start_with_terminal(options) do
     configure_shell_history(options)
 
     parent = self()
     ref = make_ref()
 
-    :shell.start_interactive({__MODULE__, :__run_interactive__, [options, parent, ref]})
+    case :shell.start_interactive({__MODULE__, :__run_interactive__, [options, parent, ref]}) do
+      :ok -> await_session(ref)
+      {:error, :already_started} -> run_repl(options)
+    end
+  end
 
+  defp await_session(ref) do
     receive do
-      {^ref, :done} -> :ok
+      {^ref, :started, session} ->
+        monitor = Process.monitor(session)
+
+        receive do
+          {^ref, :done} ->
+            Process.demonitor(monitor, [:flush])
+            :ok
+
+          {:DOWN, ^monitor, :process, ^session, reason} ->
+            {:error, reason}
+        end
     end
   end
 
@@ -69,16 +96,37 @@ defmodule Unity.Repl do
   end
 
   @doc false
-  @spec __run_interactive__(keyword(), pid(), reference()) :: :ok
+  # Applied by the Erlang shell's group process, which expects the pid of
+  # the process that runs the session and becomes its group leader: the
+  # group is its own group leader while this runs, and a spawned process
+  # inherits it. Running the session here instead would make the group
+  # call itself on the first output.
+  #
+  # The group hands the session's exit reason to the terminal driver,
+  # which announces "Shell process terminated!" for every reason but `die`
+  # and `terminated` (OTP 26 to 29), so a session that ends as asked exits
+  # with `terminated`.
+  @spec __run_interactive__(keyword(), pid(), reference()) :: pid()
   def __run_interactive__(options, parent, ref) do
-    configure_tab_completion()
-    run_repl(options)
-    send(parent, {ref, :done})
-    :ok
+    spawn(__MODULE__, :__run_session__, [options, parent, ref])
   end
 
-  defp configure_tab_completion do
-    :io.setopts(:standard_io, expand_fun: &Unity.Repl.Completion.expand/1)
+  @doc false
+  # Ends by exiting, as above, which `:error_handling` would report.
+  @dialyzer {:nowarn_function, __run_session__: 3}
+  @spec __run_session__(keyword(), pid(), reference()) :: no_return()
+  def __run_session__(options, parent, ref) do
+    send(parent, {ref, :started, self()})
+    configure_session()
+    run_repl(options)
+    send(parent, {ref, :done})
+    exit(:terminated)
+  end
+
+  # The group `:shell.start_interactive/1` starts reads lines as charlists
+  # until told otherwise, and the REPL reads strings.
+  defp configure_session do
+    :io.setopts(:standard_io, binary: true, expand_fun: &Unity.Repl.Completion.expand/1)
   end
 
   defp run_repl(options) do
@@ -100,7 +148,7 @@ defmodule Unity.Repl do
   # providing line editing. In that case we need to bootstrap the Erlang
   # terminal driver via shell:start_interactive/1.
   defp needs_terminal_bootstrap? do
-    not iex_running?() and tty?()
+    not iex_running?() and terminal?()
   end
 
   defp iex_running? do
@@ -111,10 +159,19 @@ defmodule Unity.Repl do
       apply(IEx, :started?, [])
   end
 
-  defp tty? do
+  @doc false
+  # Whether standard input is a terminal. An escript runs Erlang with
+  # `-noshell`, where `:echo` is false even on a terminal. OTP 27 and later
+  # report `:stdin`; OTP 26 reports only `:terminal`, which describes
+  # standard output and is the nearest it offers.
+  @spec terminal?() :: boolean()
+  def terminal? do
     case :io.getopts(:standard_io) do
-      options when is_list(options) -> Keyword.get(options, :echo, false) != false
-      _ -> false
+      options when is_list(options) ->
+        Keyword.get(options, :stdin, Keyword.get(options, :terminal, false)) == true
+
+      _other ->
+        false
     end
   end
 
