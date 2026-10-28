@@ -29,7 +29,7 @@ Locale set to :de
 
 ## Supported Elixir and OTP versions
 
-Unity requires **Elixir 1.17** or later on **OTP 26** or later, and is tested on every Elixir from 1.17 to 1.20 with each OTP it supports, up to OTP 29.
+Unity requires **Elixir 1.17** or later on **OTP 26** or later, and is tested on every Elixir from 1.17 to 1.20 with each OTP it supports, up to OTP 29. The `unity` escript needs **Elixir 1.18** or later, where Mix learned to carry an application's `priv` directory inside an escript.
 
 ## Installation
 

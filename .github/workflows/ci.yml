@@ -99,8 +99,11 @@ jobs:
         run: mix test --only integration
 
       # The escript is built in `prod`, as `mix escript.install hex unity`
-      # builds it, and must read Localize's data from inside itself.
+      # builds it, and must read Localize's data from inside itself. Mix
+      # carries an application's `priv` in an escript from Elixir 1.18
+      # (`include_priv_for`), so the escript is not built on 1.17.
       - name: Build and run the escript
+        if: ${{ !startsWith(matrix.elixir, '1.17') }}
         env:
           MIX_ENV: prod
         run: |

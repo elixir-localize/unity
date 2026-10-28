@@ -37,7 +37,7 @@ The REPL provides tab completion for unit names and functions, command history a
 
 ### As a CLI
 
-Install the escript with `mix escript.install hex unity` (or build it from a checkout with `MIX_ENV=prod mix escript.build`), then:
+Install the escript with `mix escript.install hex unity` (or build it from a checkout with `MIX_ENV=prod mix escript.build`) on Elixir 1.18 or later, then:
 
 ```bash
 # Single conversion

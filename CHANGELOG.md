@@ -4,7 +4,7 @@
 
 ### Bug Fixes
 
-* The escript starts: it carries Localize's data with `include_priv_for: [:localize]`, which Localize 1.4 reads from an escript, and downloads any other locale on first use.
+* The escript starts: it carries Localize's data with `include_priv_for: [:localize]`, which Localize 1.4 reads from an escript, and downloads any other locale on first use. It needs Elixir 1.18 or later, where Mix learned to carry a `priv` directory in an escript.
 
 * A conversion in the default format no longer crashes by applying `not/1` to an absent `--strict` switch.
 
