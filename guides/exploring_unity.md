@@ -37,7 +37,7 @@ The REPL provides tab completion for unit names and functions, command history a
 
 ### As a CLI
 
-Build the escript with `mix escript.build`, then:
+Install the escript with `mix escript.install hex unity` (or build it from a checkout with `MIX_ENV=prod mix escript.build`), then:
 
 ```bash
 # Single conversion
@@ -121,7 +121,7 @@ Rational numbers use the `|` operator (`1|3` = one-third). Hex (`0xFF`), octal (
 2.091667 hours
 
 > distance / time
-20.172414 kilometers per hour
+20.172908 kilometers per hour
 
 > bindings
   _ = 20.172414 kilometers per hour
@@ -226,14 +226,14 @@ After importing GNU Units definitions, SI prefixes work on custom units automati
 299,792.458 meters
 
 > 1 kilofurlong to miles
-124.274238 miles
+125 miles
 ```
 
 Power prefixes also work:
 
 ```
 > 5 square-smoot to square-meter
-14.4806 square meters
+14.480616 square meters
 ```
 
 ## Functions
@@ -308,7 +308,7 @@ Passing a dimensioned value is an error:
 1
 
 > factorial(10)
-3628800
+3,628,800
 ```
 
 ### Introspection
@@ -362,7 +362,7 @@ false
 1970-01-01T00:00:00Z
 
 > timestamp(launch)
-1742029200
+1,742,029,200
 
 > today()
 2026-04-13
@@ -392,7 +392,7 @@ The `Unity.GnuUnitsImporter` parses the GNU `units` definition file and register
 ```elixir
 iex> {:ok, stats} = Unity.GnuUnitsImporter.import()
 iex> stats.imported
-2438
+2441
 iex> map_size(stats.constants)
 250
 ```
@@ -400,16 +400,13 @@ iex> map_size(stats.constants)
 After importing, thousands of additional units become available:
 
 ```
-> 3 furlongs to meters
-603.504 meters
+> 1 league to miles
+3 miles
 
-> 1 fathom to feet
-6 feet
+> 1 hand to inches
+4 inches
 
-> 1 stone to kg
-6.350293 kilograms
-
-> 1 troy-ounce to grams
+> 1 troyounce to grams
 31.103477 grams
 ```
 
@@ -419,22 +416,22 @@ Imported functions work both as function calls and as unit conversions:
 
 ```
 > tempc(100)
-373.15 kelvin
+373.15 kelvins
 
 > 100 tempc to fahrenheit
-212 fahrenheit
+212 degrees Fahrenheit
 
 > dbm(0)
 0.001 kilogram-square-meter-per-cubic-second
 
 > wiregauge(12)
-0.002053 meter
+0.002053 meters
 
 > baume(10)
-1,074.074074 kilogram-per-cubic-meter
+1,074.074074 kilograms per cubic meter
 
 > ph(7)
-0.0001 item-per-cubic-meter
+0.0001 items per cubic meter
 ```
 
 ### Constants as bindings
@@ -454,8 +451,8 @@ In the REPL, pass constants as the initial environment:
 > gross kg
 144 kilograms
 
-> avogadro
-6.02214076e23
+> dozen
+12
 ```
 
 ### Exporting for repeatable loading
@@ -548,29 +545,37 @@ Locale set to :de
 ### Output formats
 
 ```bash
-# Default: value and unit name
+# Default: value and unit name, then the reciprocal on a second line
 ./unity "3 meters to feet"
 # 9.84252 feet
+#	/ 0.1016
 
-# Verbose: shows from = to
+# Forward conversion only
+./unity -1 "3 meters to feet"
+# 9.84252 feet
+
+# Verbose: shows the expression and its result
 ./unity -v "3 meters to feet"
-# 3 meters = 9.84252 feet
+# 3 meters to feet = 9.84252 feet
 
 # Terse: bare number only
 ./unity -t "3 meters to feet"
 # 9.84252
 
 # Control precision
-./unity -d 2 "3 meters to feet"
+./unity -d 2 -1 "3 meters to feet"
 # 9.84 feet
 
-# Scientific notation
-./unity -e "1 lightyear to km"
-# 9.460730e12 kilometers
+# Scientific notation, for the bare number
+./unity -t -e "1 light-year to km"
+# 9.46073E12
 
-# Printf-style format
-./unity -o "%.10g" "pi radians to degrees"
+# Printf-style format, for the bare number
+./unity -t -o "%.10g" "3 meters to feet"
+# 9.842519685
 ```
+
+`-e` and `-o` shape the bare number: in the default and verbose formats they apply to the reciprocal line only, which is an open item in `TODO.md`.
 
 ## REPL commands
 

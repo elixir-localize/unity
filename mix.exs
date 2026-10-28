@@ -1,7 +1,7 @@
 defmodule Unity.MixProject do
   use Mix.Project
 
-  @version "1.1.0"
+  @version "1.2.0"
   @source_url "https://github.com/elixir-localize/unity"
 
   def project do
@@ -86,6 +86,24 @@ defmodule Unity.MixProject do
         "guides/importing_gnu_units_definitions.md"
       ],
       groups_for_extras: [Guides: ~r/guides\/.*/],
+      groups_for_modules: [
+        Evaluation: [
+          Unity.Parser,
+          Unity.Interpreter,
+          Unity.Formatter,
+          Unity.Aliases,
+          Unity.Aliases.Plural,
+          Unity.Error
+        ],
+        "Command line and REPL": [Unity.CLI, Unity.Repl],
+        "GNU units import": [
+          Unity.GnuUnitsImporter,
+          Unity.GnuUnitsImporter.Parser,
+          Unity.GnuUnitsImporter.Registrar,
+          Unity.GnuUnitsImporter.Resolver
+        ],
+        "Nonlinear conversions": [~r/Unity\.Conversion\..*/]
+      ],
       source_ref: "v#{@version}"
     ]
   end

@@ -1,6 +1,6 @@
 # Changelog
 
-## v1.2.0 (Unreleased)
+## v1.2.0 (2026-10-28)
 
 ### Bug Fixes
 
@@ -13,6 +13,8 @@
 * The escript's REPL starts on a terminal, where it read standard input because `:echo` is false under `-noshell`, runs in its own process as `:shell.start_interactive/1` requires, and ends the escript if it crashes.
 
 * The REPL renders plain text when Marcli's NIF cannot load, as in an escript, and lays tables out in columns.
+
+* A GNU definition that adds terms, such as `smoot 5 ft + 7 in`, resolves as the sum, where the importer multiplied the terms and registered `smoot` as an area. `smoot`, `standardgauge`, `arshin`, the shoe sizes and the `area_*` sums now import.
 
 ### Changed
 

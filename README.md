@@ -23,9 +23,13 @@ An Elixir unit conversion calculator inspired by the Unix [`units`](https://www.
 > locale de
 Locale set to :de
 
-> 1234,5 meter to kilometer
+> 1234.5 meter to kilometer
 1,2345 Kilometer
 ```
+
+## Supported Elixir and OTP versions
+
+Unity requires **Elixir 1.17** or later on **OTP 26** or later, and is tested on every Elixir from 1.17 to 1.20 with each OTP it supports, up to OTP 29.
 
 ## Installation
 
@@ -34,7 +38,7 @@ Add `unity` to your list of dependencies in `mix.exs`:
 ```elixir
 def deps do
   [
-    {:unity, "~> 1.0"}
+    {:unity, "~> 1.2.0"}
   ]
 end
 ```
@@ -75,7 +79,7 @@ Given no expression on a terminal, `unity` starts the interactive session, with 
 ## What's included
 
 * 155 CLDR base units with full SI prefix support (thousands of prefixed variants).
-* ~2,440 additional units imported from GNU Units (furlong, fathom, smoot, lightsecond, ...).
+* ~2,440 additional units imported from GNU Units (league, hand, troyounce, lightsecond, ...).
 * ~75 nonlinear conversions (decibel scales, temperature functions, wire gauges, density hydrometers, photographic exposure, atmospheric models, astronomical magnitudes).
 * ~250 dimensionless constants (dozen, gross, avogadro, speed of light, ...).
 * 36 built-in math functions including trig, hyperbolic, logarithmic, factorial, gcd/lcm.
@@ -104,4 +108,4 @@ See https://www.ibiblio.org/harris/500milemail.html.
 
 ## License
 
-Apache 2.0 (See LICENSE.md)
+Apache 2.0. See [LICENSE.md](https://github.com/elixir-localize/unity/blob/v1.2.0/LICENSE.md).

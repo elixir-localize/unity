@@ -127,6 +127,69 @@ defmodule Unity.GnuUnitsImporterTest do
       assert_in_delta elem(resolved["inch"], 0), 0.0254, 0.0001
     end
 
+    test "resolves a sum of terms" do
+      parsed =
+        Parser.parse_content("""
+        m !
+        inch 0.0254 m
+        foot 12 inch
+        smoot 5 foot + 7 inch
+        """)
+
+      {:ok, resolved} = Resolver.resolve_all(parsed)
+      assert_in_delta elem(resolved["smoot"], 0), 1.7018, 0.0001
+      assert resolved["smoot"] |> elem(1) == %{"m" => 1}
+    end
+
+    test "resolves a difference of terms and a leading sign" do
+      parsed =
+        Parser.parse_content("""
+        m !
+        foot 0.3048 m
+        short 3 foot - 2 foot
+        flipped -1 foot + 3 foot
+        """)
+
+      {:ok, resolved} = Resolver.resolve_all(parsed)
+      assert_in_delta elem(resolved["short"], 0), 0.3048, 0.0001
+      assert_in_delta elem(resolved["flipped"], 0), 0.6096, 0.0001
+    end
+
+    test "resolves a sum inside parentheses before the factor outside them" do
+      parsed =
+        Parser.parse_content("""
+        m !
+        inch 0.0254 m
+        shoe (7+11|12) inch
+        """)
+
+      {:ok, resolved} = Resolver.resolve_all(parsed)
+      assert_in_delta elem(resolved["shoe"], 0), (7 + 11 / 12) * 0.0254, 0.0001
+    end
+
+    test "refuses a sum of terms with different dimensions" do
+      parsed =
+        Parser.parse_content("""
+        m !
+        s !
+        bad 1 m + 1 s
+        """)
+
+      {:ok, resolved} = Resolver.resolve_all(parsed)
+      refute Map.has_key?(resolved, "bad")
+    end
+
+    test "still reads a negative exponent as the power's sign" do
+      parsed =
+        Parser.parse_content("""
+        s !
+        hertz s^-1
+        """)
+
+      {:ok, resolved} = Resolver.resolve_all(parsed)
+      assert resolved["hertz"] |> elem(1) == %{"s" => -1}
+    end
+
     test "resolves fractions" do
       parsed =
         Parser.parse_content("""

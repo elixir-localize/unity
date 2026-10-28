@@ -23,7 +23,7 @@ Localize.Unit.load_custom_units("priv/gnu_units.exs")
 The CLI also supports loading via the `-f` flag:
 
 ```bash
-units -f priv/gnu_units.exs "3 furlongs to meters"
+unity -f priv/gnu_units.exs "3 furlongs to meters"
 ```
 
 ## What gets imported

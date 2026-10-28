@@ -191,7 +191,7 @@ These features are present in our implementation but not in GNU `units`:
 
 * **Elixir library API**. `Unity.eval/2`, `Unity.format/2`, and the full parser/interpreter pipeline are available as a library for embedding in Elixir applications. GNU is a standalone command-line tool only.
 
-* **Pipe/stdin support**. `echo "3 meters to feet" | units` reads expressions from stdin when not attached to a terminal.
+* **Pipe/stdin support**. `echo "3 meters to feet" | unity` reads expressions from stdin when not attached to a terminal.
 
 * **`let` bindings**. Named variables with `let distance = 42.195 km` that persist across expressions within a session. The `bindings` REPL command displays all current variable bindings.
 

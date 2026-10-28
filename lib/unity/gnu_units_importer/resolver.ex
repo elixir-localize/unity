@@ -115,7 +115,40 @@ defmodule Unity.GnuUnitsImporter.Resolver do
     eval_token_list(tokenize(expr), depth)
   end
 
+  # A value is a sum of terms (`5 ft + 7 in`, `26 miles + 385 yards`), each
+  # term a quotient of products. `+` and `-` bind loosest, so the tokens are
+  # split at them outside parentheses first; the terms must share their
+  # dimensions, or the definition is refused.
   defp eval_token_list(tokens, depth) do
+    case split_on_sum(tokens) do
+      [] -> eval_quotient([], depth)
+      [{1, term}] -> eval_quotient(term, depth)
+      terms -> eval_sum(terms, depth)
+    end
+  end
+
+  defp eval_sum(terms, depth) do
+    Enum.reduce_while(terms, {:ok, nil}, fn {sign, tokens}, {:ok, acc} ->
+      case eval_quotient(tokens, depth) do
+        {:ok, {factor, dims}} -> add_term(acc, sign * factor, dims)
+        :error -> {:halt, :error}
+      end
+    end)
+  end
+
+  defp add_term(nil, factor, dims) do
+    {:cont, {:ok, {factor, dims}}}
+  end
+
+  defp add_term({acc_factor, dims}, factor, dims) do
+    {:cont, {:ok, {acc_factor + factor, dims}}}
+  end
+
+  defp add_term(_acc, _factor, _dims) do
+    {:halt, :error}
+  end
+
+  defp eval_quotient(tokens, depth) do
     case split_on_slash(tokens) do
       {num_tokens, []} ->
         eval_product(num_tokens, depth)
@@ -224,6 +257,48 @@ defmodule Unity.GnuUnitsImporter.Resolver do
 
   # ── Helpers ──
 
+  # Splits at `+` and `-` outside parentheses into `{sign, term_tokens}`
+  # pairs. A sign with no term before it is unary and signs the next term.
+  defp split_on_sum(tokens) do
+    do_split_sum(tokens, [], 1, [], 0)
+  end
+
+  defp do_split_sum([], [], _sign, terms, _depth) do
+    Enum.reverse(terms)
+  end
+
+  defp do_split_sum([], acc, sign, terms, _depth) do
+    Enum.reverse([{sign, Enum.reverse(acc)} | terms])
+  end
+
+  defp do_split_sum([:plus | rest], [], _sign, terms, 0) do
+    do_split_sum(rest, [], 1, terms, 0)
+  end
+
+  defp do_split_sum([:minus | rest], [], _sign, terms, 0) do
+    do_split_sum(rest, [], -1, terms, 0)
+  end
+
+  defp do_split_sum([:plus | rest], acc, sign, terms, 0) do
+    do_split_sum(rest, [], 1, [{sign, Enum.reverse(acc)} | terms], 0)
+  end
+
+  defp do_split_sum([:minus | rest], acc, sign, terms, 0) do
+    do_split_sum(rest, [], -1, [{sign, Enum.reverse(acc)} | terms], 0)
+  end
+
+  defp do_split_sum([:lparen | rest], acc, sign, terms, depth) do
+    do_split_sum(rest, [:lparen | acc], sign, terms, depth + 1)
+  end
+
+  defp do_split_sum([:rparen | rest], acc, sign, terms, depth) do
+    do_split_sum(rest, [:rparen | acc], sign, terms, depth - 1)
+  end
+
+  defp do_split_sum([token | rest], acc, sign, terms, depth) do
+    do_split_sum(rest, [token | acc], sign, terms, depth)
+  end
+
   defp split_on_slash(tokens), do: do_split_slash(tokens, [], 0)
 
   defp do_split_slash([], acc, _), do: {Enum.reverse(acc), []}
@@ -268,7 +343,12 @@ defmodule Unity.GnuUnitsImporter.Resolver do
     do_tokenize(rest, [{:number, number} | acc])
   end
 
-  defp do_tokenize("-" <> rest, acc) when rest != "" do
+  defp do_tokenize("+" <> rest, acc) do
+    do_tokenize(rest, [:plus | acc])
+  end
+
+  # After `^` a `-` is the exponent's sign, as `maybe_power/3` reads it.
+  defp do_tokenize("-" <> rest, [:caret | _] = acc) when rest != "" do
     <<c, _::binary>> = rest
 
     if c in ?0..?9 do
@@ -276,6 +356,19 @@ defmodule Unity.GnuUnitsImporter.Resolver do
       do_tokenize(rest, [{:number, -number} | acc])
     else
       do_tokenize(rest, [{:identifier, "-"} | acc])
+    end
+  end
+
+  # After a value a `-` subtracts; elsewhere it signs the number that
+  # follows it, or the next term when no number follows.
+  defp do_tokenize("-" <> rest, acc) when rest != "" do
+    <<c, _::binary>> = rest
+
+    if c in ?0..?9 and not value_token?(acc) do
+      {number, rest} = consume_number(rest)
+      do_tokenize(rest, [{:number, -number} | acc])
+    else
+      do_tokenize(rest, [:minus | acc])
     end
   end
 
@@ -290,8 +383,25 @@ defmodule Unity.GnuUnitsImporter.Resolver do
     do_tokenize(rest, [{:number, value} | acc])
   end
 
-  defp do_tokenize("-", acc), do: [{:identifier, "-"} | acc]
+  defp do_tokenize("-", acc), do: [:minus | acc]
   defp do_tokenize(<<_, rest::binary>>, acc), do: do_tokenize(rest, acc)
+
+  # A `-` after a number, a name or a closing parenthesis is a subtraction.
+  defp value_token?([{:number, _} | _]) do
+    true
+  end
+
+  defp value_token?([{:identifier, _} | _]) do
+    true
+  end
+
+  defp value_token?([:rparen | _]) do
+    true
+  end
+
+  defp value_token?(_acc) do
+    false
+  end
 
   defp consume_number(input) do
     case Regex.run(~r/^([0-9]*\.?[0-9]+(?:[eE][+-]?[0-9]+)?)/, input) do
